@@ -1,0 +1,30 @@
+# Searchy — requirements.txt
+# Install all: pip install -r requirements.txt
+
+# Core scraping
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0           # faster HTML parser for BeautifulSoup
+
+# PDF parsing (install at least one)
+pdfplumber>=0.10.0
+pypdf>=3.17.0         # fallback
+
+# Data & AI
+pandas>=2.1.0
+scikit-learn>=1.3.0
+numpy>=1.26.0
+
+# Notifications
+python-telegram-bot>=20.7
+# smtplib is built-in (no install needed)
+
+# Scheduler
+schedule>=1.2.0
+
+# Dashboard
+streamlit>=1.30.0
+plotly>=5.18.0        # charts in dashboard
+
+# Utilities
+python-dotenv>=1.0.0  # optional, for .env file loading

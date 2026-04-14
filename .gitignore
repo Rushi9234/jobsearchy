@@ -1,0 +1,20 @@
+# Credentials — NEVER commit these
+searchy.env
+*.env
+
+# Personal data
+profile.json
+searchy.db
+searchy.log
+uploads/
+*.pdf
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.sixth/
+
+# OS
+.DS_Store
+Thumbs.db
