@@ -31,12 +31,12 @@ def _get_config() -> dict:
                     os.environ.setdefault(k.strip(), v.strip())
 
     cfg = {
-        "sender_email":    os.getenv("EMAIL_SENDER"),
-        "sender_password": os.getenv("MAIL_PASS") or os.getenv("EMAIL_PASSWORD"),
-        "recipient_email": os.getenv("EMAIL_RECIPIENT"),
-        "smtp_host":       os.getenv("SMTP_HOST", "smtp.gmail.com"),
-        "smtp_port":       int(os.getenv("SMTP_PORT", "587")),
-    }
+    "sender_email":    os.getenv("MAIL_FROM"),
+    "sender_password": os.getenv("MAIL_PASS"),
+    "recipient_email": os.getenv("MAIL_TO"),
+    "smtp_host":       os.getenv("SMTP_HOST", "smtp.gmail.com"),
+    "smtp_port":       int(os.getenv("SMTP_PORT", "587")),
+}
 
     return cfg
 
