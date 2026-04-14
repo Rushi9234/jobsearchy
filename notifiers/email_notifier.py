@@ -32,7 +32,7 @@ def _get_config() -> dict:
 
     cfg = {
         "sender_email":    os.getenv("EMAIL_SENDER"),
-        "sender_password": os.getenv("EMAIL_PASSWORD"),
+        "sender_password": os.getenv("MAIL_PASS") or os.getenv("EMAIL_PASSWORD"),
         "recipient_email": os.getenv("EMAIL_RECIPIENT"),
         "smtp_host":       os.getenv("SMTP_HOST", "smtp.gmail.com"),
         "smtp_port":       int(os.getenv("SMTP_PORT", "587")),
