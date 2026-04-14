@@ -20,6 +20,16 @@ PLATFORM_TAGLINE = "AI-Powered Job Discovery for Students"
 
 
 def _get_config() -> dict:
+    # Load searchy.env file if it exists (local development)
+    env_path = os.path.join(os.path.dirname(__file__), "..", "searchy.env")
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if "=" in line and not line.startswith("#"):
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip())
+
     cfg = {
         "sender_email":    os.getenv("EMAIL_SENDER"),
         "sender_password": os.getenv("EMAIL_PASSWORD"),
@@ -27,18 +37,7 @@ def _get_config() -> dict:
         "smtp_host":       os.getenv("SMTP_HOST", "smtp.gmail.com"),
         "smtp_port":       int(os.getenv("SMTP_PORT", "587")),
     }
-    if not all([cfg["sender_email"], cfg["sender_password"], cfg["recipient_email"]]):
-        env_path = os.path.join(os.path.dirname(__file__), "..", "searchy.env")
-        if os.path.exists(env_path):
-            with open(env_path) as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("EMAIL_SENDER="):
-                        cfg["sender_email"] = line.split("=", 1)[1].strip()
-                    elif line.startswith("EMAIL_PASSWORD="):
-                        cfg["sender_password"] = line.split("=", 1)[1].strip()
-                    elif line.startswith("EMAIL_RECIPIENT="):
-                        cfg["recipient_email"] = line.split("=", 1)[1].strip()
+
     return cfg
 
 
