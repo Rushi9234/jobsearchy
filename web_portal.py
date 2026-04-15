@@ -384,17 +384,23 @@ def send_digest():
         all_skills = profile_data.get("summary", {}).get("all_skills", []) or \
                      flatten_skills(profile_data.get("skills", []))
 
+        # Use provided email or fallback to profile email then env var
+        to_email = recipient_email or profile_data.get("email") or os.getenv("MAIL_TO", "")
+        if not to_email:
+            return jsonify({"error": "No recipient email. Please enter your email address."}), 400
+
         result = send_daily_digest(
             jobs,
-            recipient_email=recipient_email if recipient_email else None,
+            recipient_email=to_email,
             user_name=user_name,
             all_skills=all_skills,
         )
         if result:
-            return jsonify({"success": True, "message": "Email sent!"})
+            return jsonify({"success": True, "message": f"Email sent to {to_email}!"})
         else:
-            return jsonify({"error": "Email failed. Check searchy.env credentials."}), 500
+            return jsonify({"error": "Email failed — check RESEND_API_KEY in Render environment variables."}), 500
     except Exception as e:
+        logger.error("[send-digest] %s", e)
         return jsonify({"error": str(e)}), 500
 
 

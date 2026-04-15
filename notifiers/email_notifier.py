@@ -1,7 +1,7 @@
-﻿"""
-email_notifier.py â€” JobSearchy Email Notifier
+"""
+email_notifier.py — JobSearchy Email Notifier
 Sends a professional HTML digest email via Gmail SMTP.
-Completely free â€” only needs a Gmail app password.
+Completely free — only needs a Gmail app password.
 """
 
 import smtplib
@@ -63,8 +63,8 @@ def _job_card(job: dict) -> str:
     color    = _score_color(score)
     label    = _score_label(score)
     tags     = _get_tags(job)
-    stipend  = job.get("stipend") or "â€”"
-    duration = job.get("duration") or "â€”"
+    stipend  = job.get("stipend") or "—"
+    duration = job.get("duration") or "—"
     location = job.get("location") or "India"
     title    = job.get("title", "Opportunity")
     company  = job.get("company", "Company")
@@ -98,10 +98,10 @@ def _job_card(job: dict) -> str:
                    color:#1e293b;text-decoration:none;line-height:1.4;
                    display:block;margin-bottom:4px;">{title}</a>
                 <div style="font-size:13px;color:#475569;margin-bottom:8px;">
-                  ðŸ¢ <strong>{company}</strong>
-                  &nbsp;&nbsp;ðŸ“ {location}
+                   <strong>{company}</strong>
+                  &nbsp;&nbsp; {location}
                   &nbsp;&nbsp;â± {duration}
-                  &nbsp;&nbsp;ðŸ’° {stipend}
+                  &nbsp;&nbsp; {stipend}
                 </div>
                 <div style="margin-bottom:10px;">{tags_html}</div>
                 <table cellpadding="0" cellspacing="0">
@@ -153,18 +153,39 @@ def _section(title: str, emoji: str, jobs: list, color: str) -> str:
     </table>"""
 
 
+def _detect_domain(all_skills: list) -> str:
+    """Detect primary domain from skills."""
+    skill_set = {s.lower() for s in all_skills}
+    scores = {
+        "aiml":        len(skill_set & {"machine learning","deep learning","tensorflow","pytorch","keras","xgboost","nlp","computer vision","huggingface","scikit-learn","sklearn","llm","langchain","transformers"}),
+        "datascience": len(skill_set & {"pandas","numpy","matplotlib","seaborn","data analysis","data science","tableau","power bi","statistics","econometrics","statsmodels","plotly","scipy","r","excel"}),
+        "webdev":      len(skill_set & {"react","angular","vue","node.js","nodejs","express","django","flask","fastapi","html","css","javascript","typescript","graphql","rest","api"}),
+        "devops":      len(skill_set & {"docker","kubernetes","aws","gcp","azure","terraform","ansible","jenkins","linux","bash","github actions"}),
+        "research":    len(skill_set & {"research","econometrics","statsmodels","ols","adf","scipy","survey design","literature review","data collection","r"}),
+        "entc":        len(skill_set & {"arduino","raspberry pi","embedded","verilog","digital electronics","matlab","microcontroller","iot"}),
+    }
+    best = max(scores, key=scores.get)
+    return best if scores[best] > 0 else "datascience"
+
+
 def _skill_gap_section(all_skills: list, jobs: list) -> str:
-    """Compute skills that appear in jobs but not in profile."""
+    """Compute domain-aware skill gaps based on user profile."""
     if not jobs:
         return ""
-    from collections import Counter
     import re
-    common_skills = [
-        "docker","aws","gcp","azure","fastapi","kubernetes","spark","hadoop",
-        "tensorflow","pytorch","mlops","airflow","kafka","redis","postgresql",
-        "react","node","typescript","graphql","mongodb","git","linux",
-        "tableau","power bi","excel","sql","flask","django","scrapy"
-    ]
+
+    domain = _detect_domain(all_skills)
+
+    domain_skills = {
+        "aiml":        ["mlflow","mlops","huggingface","langchain","llm","fastapi","docker","aws","pytorch","tensorflow","cuda","wandb","airflow","spark","kubernetes","redis","postgresql","git","linux"],
+        "datascience": ["sql","postgresql","tableau","power bi","spark","hadoop","airflow","docker","aws","mongodb","redis","git","linux","dbt","bigquery","snowflake","kafka","looker"],
+        "webdev":      ["typescript","docker","postgresql","mongodb","redis","aws","kubernetes","graphql","next.js","tailwind","prisma","jest","ci/cd","linux","nginx","elasticsearch"],
+        "devops":      ["terraform","ansible","kubernetes","prometheus","grafana","vault","helm","argocd","datadog","python","bash","go","aws","gcp","azure"],
+        "research":    ["stata","r","latex","spss","sql","tableau","power bi","python","pandas","scipy","statsmodels","excel","git","docker","postgresql"],
+        "entc":        ["python","matlab","tensorflow","pytorch","opencv","mqtt","docker","postgresql","git","linux","node.js","flask","fastapi","aws iot"],
+    }
+
+    common_skills = domain_skills.get(domain, domain_skills["datascience"])
     job_text = " ".join(
         (j.get("title","") + " " + j.get("description","") + " " +
          " ".join(_get_tags(j))).lower()
@@ -195,7 +216,7 @@ def _skill_gap_section(all_skills: list, jobs: list) -> str:
       <tr>
         <td style="padding:20px;">
           <div style="font-size:15px;font-weight:800;color:#92400e;margin-bottom:6px;">
-            ðŸŽ¯ Skill Gaps â€” Add These to Get More Matches
+            &#127919; Skill Gaps — Add These to Get More Matches
           </div>
           <div style="font-size:13px;color:#78350f;margin-bottom:14px;">
             These skills appear frequently in jobs but are missing from your resume:
@@ -229,7 +250,7 @@ def _build_html(
         kw in (j.get("source","") + j.get("title","")).lower()
         for kw in ["govt","government","niti","isro","drdo","aicte","mygov"]
     )]
-    # Top matches â€” best scoring from all
+    # Top matches — best scoring from all
     top = sorted(jobs, key=lambda x: x.get("match_score",0), reverse=True)[:8]
 
     # Remaining after top shown
@@ -245,10 +266,10 @@ def _build_html(
 
     first_name = user_name.split()[0] if user_name and user_name != "there" else "there"
 
-    top_section         = _section("Top Matches For You", "ðŸ†", top, "#2563eb")
-    internship_section  = _section("Internships", "ðŸ’¼", remaining_internships, "#16a34a")
+    top_section         = _section("Top Matches For You", "", top, "#2563eb")
+    internship_section  = _section("Internships", "", remaining_internships, "#16a34a")
     hackathon_section   = _section("Hackathons & Competitions", "âš¡", remaining_hackathons, "#7c3aed")
-    govt_section        = _section("Government Opportunities", "ðŸ›ï¸", remaining_govt, "#dc2626")
+    govt_section        = _section("Government Opportunities", "", remaining_govt, "#dc2626")
     gap_section         = _skill_gap_section(all_skills or [], jobs)
 
     return f"""<!DOCTYPE html>
@@ -256,7 +277,7 @@ def _build_html(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>JobSearchy â€” Your Results</title>
+  <title>JobSearchy — Your Results</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;
              font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -272,7 +293,7 @@ def _build_html(
   <tr>
     <td style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 60%,#3b82f6 100%);
                padding:36px 40px 28px;text-align:center;">
-      <div style="font-size:32px;margin-bottom:6px;">ðŸ”</div>
+      <div style="font-size:32px;margin-bottom:6px;"></div>
       <div style="color:white;font-size:26px;font-weight:900;
                   letter-spacing:-0.5px;margin-bottom:4px;">
         JobSearchy
@@ -284,13 +305,13 @@ def _build_html(
                   padding:14px 20px;display:inline-block;text-align:left;width:100%;
                   box-sizing:border-box;">
         <div style="color:white;font-size:18px;font-weight:700;margin-bottom:2px;">
-          Hey {first_name}! ðŸ‘‹
+          Hey {first_name}! 
         </div>
         <div style="color:#dbeafe;font-size:14px;line-height:1.5;">
           We scanned <strong style="color:white;">{len(jobs)} opportunities</strong>
           across <strong style="color:white;">{source_count} platforms</strong>
           and matched them against your resume.
-          Here are the best results â€” sorted by AI match score.
+          Here are the best results — sorted by AI match score.
         </div>
       </div>
     </td>
@@ -342,10 +363,10 @@ def _build_html(
         <tr>
           <td style="padding:18px 20px;">
             <div style="font-size:14px;font-weight:700;color:#15803d;margin-bottom:6px;">
-              ðŸ’¡ Pro Tip from JobSearchy
+               Pro Tip from JobSearchy
             </div>
             <div style="font-size:13px;color:#166534;line-height:1.6;">
-              Jobs with a score above 50 are strong matches â€” apply to these first.
+              Jobs with a score above 50 are strong matches — apply to these first.
               Scores above 30 are worth reading. Update your resume with more project
               details to improve your scores on the next scan.
             </div>
@@ -360,7 +381,7 @@ def _build_html(
   <tr>
     <td style="background:#f8fafc;padding:24px 36px;
                border-top:1px solid #e2e8f0;text-align:center;">
-      <div style="font-size:16px;margin-bottom:8px;">ðŸ”</div>
+      <div style="font-size:16px;margin-bottom:8px;"></div>
       <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:4px;">
         JobSearchy
       </div>
@@ -388,7 +409,7 @@ def _build_plain(jobs: list, user_name: str = "there") -> str:
     first_name = user_name.split()[0] if user_name and user_name != "there" else "there"
     top = sorted(jobs, key=lambda x: x.get("match_score",0), reverse=True)[:15]
     lines = [
-        f"JOBSEARCHY â€” Your Job Results",
+        f"JOBSEARCHY — Your Job Results",
         "=" * 50,
         f"Hey {first_name}!",
         f"We found {len(jobs)} opportunities matching your profile.",
@@ -400,12 +421,12 @@ def _build_plain(jobs: list, user_name: str = "there") -> str:
         lines.append(
             f"{i}. [{int(job.get('match_score',0))}/100] {job.get('title','?')}\n"
             f"   {job.get('company','?')} | {job.get('location','?')}\n"
-            f"   Stipend: {job.get('stipend','â€”')} | Duration: {job.get('duration','â€”')}\n"
+            f"   Stipend: {job.get('stipend','—')} | Duration: {job.get('duration','—')}\n"
             f"   {job.get('url','')}\n"
         )
     lines += [
-        "â€”",
-        "Powered by JobSearchy â€” AI Job Discovery",
+        "—",
+        "Powered by JobSearchy — AI Job Discovery",
         "Built by Rushikesh Kedar, MITAOE Pune",
     ]
     return "\n".join(lines)
@@ -431,7 +452,7 @@ def send_daily_digest(
 
     first_name = user_name.split()[0] if user_name and user_name != "there" else "there"
     top_score  = max((j.get("match_score",0) for j in jobs), default=0)
-    subject    = f"ðŸŽ¯ Hey {first_name} â€” {len(jobs)} opportunities found! (Top score: {int(top_score)}/100)"
+    subject    = f"JobSearchy - Hey {first_name} - {len(jobs)} opportunities found! Top score: {int(top_score)}/100"
 
     try:
         import resend
@@ -471,5 +492,5 @@ if __name__ == "__main__":
         user_name="Rushikesh Baban Kedar",
         all_skills=["python","pandas","xgboost","scikit-learn","econometrics"]
     )
-    print("âœ… Email sent!" if ok else "âŒ Failed â€” check searchy.env")
+    print("âœ… Email sent!" if ok else "âŒ Failed — check searchy.env")
 

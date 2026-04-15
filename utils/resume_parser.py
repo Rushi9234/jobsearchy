@@ -204,9 +204,9 @@ def extract_college(text: str) -> Optional[str]:
 
 def extract_current_course(text: str) -> Optional[str]:
     patterns = [
-        r"(b\.?tech|b\.?e|bachelor of technology|bachelor of engineering)[^\n]*?(computer science|cs|it|information technology|electronics|electrical|mechanical|civil|entc|telecommunication|data science|ai)[^\n]*",
+        r"(b\.?tech|b\.?e|bachelor of technology|bachelor of engineering)[^\n]*?(computer science|cs|it|information technology|electronics|electrical|mechanical|civil|entc|telecommunication|data science|ai|artificial intelligence|machine learning)[^\n]*",
         r"(b\.?e\.?)[^\n]*?(electronics|telecommunication|entc|electrical|mechanical)[^\n]*",
-        r"(m\.?tech|master of technology|mba|b\.?sc|m\.?sc)[^\n]*?(computer|data|software|electronics|physics|mathematics)[^\n]*",
+        r"(m\.?tech|master of technology|mba|b\.?sc|m\.?sc)[^\n]*?(computer|data|software|electronics|physics|mathematics|ai|machine learning)[^\n]*",
         r"(b\.?tech|b\.?e|m\.?tech|mba|b\.?sc|m\.?sc|phd)[^\n]{0,60}",
     ]
     for pat in patterns:
@@ -216,6 +216,40 @@ def extract_current_course(text: str) -> Optional[str]:
             if len(result) > 5:
                 return result[:100]
     return None
+
+
+def detect_domain(text: str, skills: list) -> str:
+    """Detect user primary domain from resume text and skills."""
+    lower = text.lower()
+    skill_set = {s.lower() for s in skills}
+
+    scores = {
+        "aiml": 0, "datascience": 0, "webdev": 0,
+        "devops": 0, "research": 0, "entc": 0,
+    }
+
+    scores["aiml"]        += len(skill_set & {"machine learning","deep learning","tensorflow","pytorch","keras","xgboost","nlp","computer vision","huggingface","scikit-learn","sklearn","llm","langchain","transformers"}) * 2
+    scores["datascience"] += len(skill_set & {"pandas","numpy","data analysis","data science","tableau","power bi","statistics","econometrics","statsmodels","scipy","r","excel","data visualization"}) * 2
+    scores["webdev"]      += len(skill_set & {"react","angular","vue","node.js","nodejs","express","django","flask","fastapi","html","css","javascript","typescript","graphql","rest","api"}) * 2
+    scores["devops"]      += len(skill_set & {"docker","kubernetes","aws","gcp","azure","terraform","ansible","jenkins","linux","bash","ci/cd","github actions"}) * 2
+    scores["research"]    += len(skill_set & {"research","econometrics","statsmodels","ols","adf","scipy","survey design","literature review","data collection"}) * 2
+    scores["entc"]        += len(skill_set & {"arduino","raspberry pi","embedded","verilog","digital electronics","matlab","microcontroller","iot","pcb"}) * 2
+
+    if any(k in lower for k in ["artificial intelligence","machine learning","deep learning","ai/ml","ai & ml","aiml"]):
+        scores["aiml"] += 3
+    if any(k in lower for k in ["data science","data analyst","business intelligence","analytics"]):
+        scores["datascience"] += 3
+    if any(k in lower for k in ["web development","full stack","fullstack","frontend","backend","software engineer"]):
+        scores["webdev"] += 3
+    if any(k in lower for k in ["devops","cloud","infrastructure","devsecops","site reliability"]):
+        scores["devops"] += 3
+    if any(k in lower for k in ["research","econometrics","quantitative","publication","paper","rbi","isro"]):
+        scores["research"] += 3
+    if any(k in lower for k in ["electronics","telecommunication","entc","embedded","vlsi","iot","circuit"]):
+        scores["entc"] += 3
+
+    best = max(scores, key=scores.get)
+    return best if scores[best] > 0 else "datascience"
 
 
 def extract_name(text: str) -> str:
@@ -422,6 +456,7 @@ def parse_resume(file_path: str) -> dict:
         "education":      education,
         "college":        extract_college(raw_text),
         "current_course": extract_current_course(raw_text),
+        "domain":         detect_domain(raw_text, skills.get("technical", [])),
         "year_of_study":  extract_year_of_study(raw_text),
         "cgpa":           extract_cgpa(raw_text),
         "projects":       projects,
