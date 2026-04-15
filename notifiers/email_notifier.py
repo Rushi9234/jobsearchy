@@ -31,10 +31,12 @@ def _get_config() -> dict:
                     os.environ.setdefault(k.strip(), v.strip())
 
     cfg = {
-    "sender_email":    os.getenv("MAIL_FROM"),
-    "recipient_email": os.getenv("MAIL_TO"),
-    "resend_api_key":  os.getenv("RESEND_API_KEY"),
-}
+        "sender_email":    os.getenv("MAIL_FROM"),
+        "sender_password": os.getenv("MAIL_PASS"),
+        "recipient_email": os.getenv("MAIL_TO"),
+        "smtp_host":       os.getenv("SMTP_HOST", "smtp.gmail.com"),
+        "smtp_port":       int(os.getenv("SMTP_PORT", "465")),
+    }
 
     return cfg
 
@@ -446,8 +448,8 @@ def send_daily_digest(
     if recipient_email and recipient_email.strip():
         cfg["recipient_email"] = recipient_email.strip()
 
-    if not all([cfg["resend_api_key"], cfg["recipient_email"]]):
-        logger.error("[Email] Missing RESEND_API_KEY or MAIL_TO in environment")
+    if not all([cfg["sender_email"], cfg["sender_password"], cfg["recipient_email"]]):
+        logger.error("[Email] Missing MAIL_FROM, MAIL_PASS or MAIL_TO in environment")
         return False
 
     first_name = user_name.split()[0] if user_name and user_name != "there" else "there"
@@ -455,16 +457,27 @@ def send_daily_digest(
     subject    = f"JobSearchy - Hey {first_name} - {len(jobs)} opportunities found! Top score: {int(top_score)}/100"
 
     try:
-        import resend
-        resend.api_key = cfg["resend_api_key"]
-        resend.Emails.send({
-            "from": "JobSearchy <onboarding@resend.dev>",
-            "to": cfg["recipient_email"],
-            "subject": subject,
-            "html": _build_html(jobs, user_name, cfg["recipient_email"], all_skills or []),
-        })
+        import ssl
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = f"JobSearchy <{cfg['sender_email']}>"
+        msg["To"]      = cfg["recipient_email"]
+        msg.attach(MIMEText(_build_plain(jobs, user_name), "plain"))
+        msg.attach(MIMEText(_build_html(jobs, user_name, cfg["recipient_email"], all_skills or []), "html"))
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"], context=context) as server:
+            server.login(cfg["sender_email"], cfg["sender_password"])
+            server.sendmail(cfg["sender_email"], cfg["recipient_email"], msg.as_string())
+
         logger.info("[Email] Sent to %s (%d jobs)", cfg["recipient_email"], len(jobs))
         return True
+    except smtplib.SMTPAuthenticationError:
+        logger.error("[Email] Auth failed — check MAIL_FROM and MAIL_PASS (use Gmail App Password)")
+        return False
     except Exception as e:
         logger.error("[Email] Error: %s", e)
         return False
