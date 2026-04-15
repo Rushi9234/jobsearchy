@@ -32,10 +32,8 @@ def _get_config() -> dict:
 
     cfg = {
     "sender_email":    os.getenv("MAIL_FROM"),
-
     "recipient_email": os.getenv("MAIL_TO"),
-    "smtp_host":       os.getenv("SMTP_HOST", "smtp.gmail.com"),
-    "smtp_port":       int(os.getenv("SMTP_PORT", "587")),
+    "resend_api_key":  os.getenv("RESEND_API_KEY"),
 }
 
     return cfg
