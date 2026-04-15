@@ -1,7 +1,7 @@
-"""
-email_notifier.py — JobSearchy Email Notifier
+﻿"""
+email_notifier.py â€” JobSearchy Email Notifier
 Sends a professional HTML digest email via Gmail SMTP.
-Completely free — only needs a Gmail app password.
+Completely free â€” only needs a Gmail app password.
 """
 
 import smtplib
@@ -63,8 +63,8 @@ def _job_card(job: dict) -> str:
     color    = _score_color(score)
     label    = _score_label(score)
     tags     = _get_tags(job)
-    stipend  = job.get("stipend") or "—"
-    duration = job.get("duration") or "—"
+    stipend  = job.get("stipend") or "â€”"
+    duration = job.get("duration") or "â€”"
     location = job.get("location") or "India"
     title    = job.get("title", "Opportunity")
     company  = job.get("company", "Company")
@@ -98,10 +98,10 @@ def _job_card(job: dict) -> str:
                    color:#1e293b;text-decoration:none;line-height:1.4;
                    display:block;margin-bottom:4px;">{title}</a>
                 <div style="font-size:13px;color:#475569;margin-bottom:8px;">
-                  🏢 <strong>{company}</strong>
-                  &nbsp;&nbsp;📍 {location}
-                  &nbsp;&nbsp;⏱ {duration}
-                  &nbsp;&nbsp;💰 {stipend}
+                  ðŸ¢ <strong>{company}</strong>
+                  &nbsp;&nbsp;ðŸ“ {location}
+                  &nbsp;&nbsp;â± {duration}
+                  &nbsp;&nbsp;ðŸ’° {stipend}
                 </div>
                 <div style="margin-bottom:10px;">{tags_html}</div>
                 <table cellpadding="0" cellspacing="0">
@@ -118,7 +118,7 @@ def _job_card(job: dict) -> str:
                          style="display:inline-block;background:#2563eb;
                                 color:white;border-radius:6px;padding:4px 16px;
                                 font-size:12px;font-weight:600;text-decoration:none;">
-                        Apply Now →
+                        Apply Now â†’
                       </a>
                     </td>
                   </tr>
@@ -195,7 +195,7 @@ def _skill_gap_section(all_skills: list, jobs: list) -> str:
       <tr>
         <td style="padding:20px;">
           <div style="font-size:15px;font-weight:800;color:#92400e;margin-bottom:6px;">
-            🎯 Skill Gaps — Add These to Get More Matches
+            ðŸŽ¯ Skill Gaps â€” Add These to Get More Matches
           </div>
           <div style="font-size:13px;color:#78350f;margin-bottom:14px;">
             These skills appear frequently in jobs but are missing from your resume:
@@ -229,7 +229,7 @@ def _build_html(
         kw in (j.get("source","") + j.get("title","")).lower()
         for kw in ["govt","government","niti","isro","drdo","aicte","mygov"]
     )]
-    # Top matches — best scoring from all
+    # Top matches â€” best scoring from all
     top = sorted(jobs, key=lambda x: x.get("match_score",0), reverse=True)[:8]
 
     # Remaining after top shown
@@ -245,10 +245,10 @@ def _build_html(
 
     first_name = user_name.split()[0] if user_name and user_name != "there" else "there"
 
-    top_section         = _section("Top Matches For You", "🏆", top, "#2563eb")
-    internship_section  = _section("Internships", "💼", remaining_internships, "#16a34a")
-    hackathon_section   = _section("Hackathons & Competitions", "⚡", remaining_hackathons, "#7c3aed")
-    govt_section        = _section("Government Opportunities", "🏛️", remaining_govt, "#dc2626")
+    top_section         = _section("Top Matches For You", "ðŸ†", top, "#2563eb")
+    internship_section  = _section("Internships", "ðŸ’¼", remaining_internships, "#16a34a")
+    hackathon_section   = _section("Hackathons & Competitions", "âš¡", remaining_hackathons, "#7c3aed")
+    govt_section        = _section("Government Opportunities", "ðŸ›ï¸", remaining_govt, "#dc2626")
     gap_section         = _skill_gap_section(all_skills or [], jobs)
 
     return f"""<!DOCTYPE html>
@@ -256,7 +256,7 @@ def _build_html(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>JobSearchy — Your Results</title>
+  <title>JobSearchy â€” Your Results</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;
              font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -268,11 +268,11 @@ def _build_html(
               box-shadow:0 8px 40px rgba(0,0,0,0.10);overflow:hidden;
               max-width:620px;">
 
-  <!-- ── HEADER ── -->
+  <!-- â”€â”€ HEADER â”€â”€ -->
   <tr>
     <td style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 60%,#3b82f6 100%);
                padding:36px 40px 28px;text-align:center;">
-      <div style="font-size:32px;margin-bottom:6px;">🔍</div>
+      <div style="font-size:32px;margin-bottom:6px;">ðŸ”</div>
       <div style="color:white;font-size:26px;font-weight:900;
                   letter-spacing:-0.5px;margin-bottom:4px;">
         JobSearchy
@@ -284,19 +284,19 @@ def _build_html(
                   padding:14px 20px;display:inline-block;text-align:left;width:100%;
                   box-sizing:border-box;">
         <div style="color:white;font-size:18px;font-weight:700;margin-bottom:2px;">
-          Hey {first_name}! 👋
+          Hey {first_name}! ðŸ‘‹
         </div>
         <div style="color:#dbeafe;font-size:14px;line-height:1.5;">
           We scanned <strong style="color:white;">{len(jobs)} opportunities</strong>
           across <strong style="color:white;">{source_count} platforms</strong>
           and matched them against your resume.
-          Here are the best results — sorted by AI match score.
+          Here are the best results â€” sorted by AI match score.
         </div>
       </div>
     </td>
   </tr>
 
-  <!-- ── STATS BAR ── -->
+  <!-- â”€â”€ STATS BAR â”€â”€ -->
   <tr>
     <td style="background:#eff6ff;padding:0;">
       <table width="100%" cellpadding="0" cellspacing="0">
@@ -325,7 +325,7 @@ def _build_html(
     </td>
   </tr>
 
-  <!-- ── BODY ── -->
+  <!-- â”€â”€ BODY â”€â”€ -->
   <tr>
     <td style="padding:32px 36px;">
 
@@ -342,10 +342,10 @@ def _build_html(
         <tr>
           <td style="padding:18px 20px;">
             <div style="font-size:14px;font-weight:700;color:#15803d;margin-bottom:6px;">
-              💡 Pro Tip from JobSearchy
+              ðŸ’¡ Pro Tip from JobSearchy
             </div>
             <div style="font-size:13px;color:#166534;line-height:1.6;">
-              Jobs with a score above 50 are strong matches — apply to these first.
+              Jobs with a score above 50 are strong matches â€” apply to these first.
               Scores above 30 are worth reading. Update your resume with more project
               details to improve your scores on the next scan.
             </div>
@@ -356,11 +356,11 @@ def _build_html(
     </td>
   </tr>
 
-  <!-- ── FOOTER ── -->
+  <!-- â”€â”€ FOOTER â”€â”€ -->
   <tr>
     <td style="background:#f8fafc;padding:24px 36px;
                border-top:1px solid #e2e8f0;text-align:center;">
-      <div style="font-size:16px;margin-bottom:8px;">🔍</div>
+      <div style="font-size:16px;margin-bottom:8px;">ðŸ”</div>
       <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:4px;">
         JobSearchy
       </div>
@@ -368,8 +368,8 @@ def _build_html(
         {PLATFORM_TAGLINE}
       </div>
       <div style="font-size:11px;color:#cbd5e1;">
-        Scanned on {date_str} at {time_str} &nbsp;·&nbsp;
-        Built by Rushikesh Kedar, MITAOE Pune &nbsp;·&nbsp;
+        Scanned on {date_str} at {time_str} &nbsp;Â·&nbsp;
+        Built by Rushikesh Kedar, MITAOE Pune &nbsp;Â·&nbsp;
         <a href="https://github.com/Rushi9234"
            style="color:#94a3b8;text-decoration:none;">GitHub</a>
       </div>
@@ -388,7 +388,7 @@ def _build_plain(jobs: list, user_name: str = "there") -> str:
     first_name = user_name.split()[0] if user_name and user_name != "there" else "there"
     top = sorted(jobs, key=lambda x: x.get("match_score",0), reverse=True)[:15]
     lines = [
-        f"JOBSEARCHY — Your Job Results",
+        f"JOBSEARCHY â€” Your Job Results",
         "=" * 50,
         f"Hey {first_name}!",
         f"We found {len(jobs)} opportunities matching your profile.",
@@ -400,12 +400,12 @@ def _build_plain(jobs: list, user_name: str = "there") -> str:
         lines.append(
             f"{i}. [{int(job.get('match_score',0))}/100] {job.get('title','?')}\n"
             f"   {job.get('company','?')} | {job.get('location','?')}\n"
-            f"   Stipend: {job.get('stipend','—')} | Duration: {job.get('duration','—')}\n"
+            f"   Stipend: {job.get('stipend','â€”')} | Duration: {job.get('duration','â€”')}\n"
             f"   {job.get('url','')}\n"
         )
     lines += [
-        "—",
-        "Powered by JobSearchy — AI Job Discovery",
+        "â€”",
+        "Powered by JobSearchy â€” AI Job Discovery",
         "Built by Rushikesh Kedar, MITAOE Pune",
     ]
     return "\n".join(lines)
@@ -431,7 +431,7 @@ def send_daily_digest(
 
     first_name = user_name.split()[0] if user_name and user_name != "there" else "there"
     top_score  = max((j.get("match_score",0) for j in jobs), default=0)
-    subject    = f"🎯 Hey {first_name} — {len(jobs)} opportunities found! (Top score: {int(top_score)}/100)"
+    subject    = f"ðŸŽ¯ Hey {first_name} â€” {len(jobs)} opportunities found! (Top score: {int(top_score)}/100)"
 
     try:
         import resend
@@ -457,13 +457,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     test_jobs = [
         {"title":"Data Science Intern","company":"Analytics Corp","location":"Remote",
-         "duration":"3 months","stipend":"₹15,000/month","url":"https://internshala.com",
+         "duration":"3 months","stipend":"â‚¹15,000/month","url":"https://internshala.com",
          "tags":["python","data science","ml"],"match_score":72.5,"source":"internshala"},
         {"title":"ML Hackathon 2026","company":"Devfolio","location":"Online",
-         "duration":"48 hours","stipend":"₹50,000 prize","url":"https://devfolio.co",
+         "duration":"48 hours","stipend":"â‚¹50,000 prize","url":"https://devfolio.co",
          "tags":["machine learning","python"],"match_score":58.0,"source":"devfolio"},
         {"title":"NITI Aayog Internship","company":"NITI Aayog","location":"New Delhi",
-         "duration":"3 months","stipend":"₹15,000/month","url":"https://niti.gov.in",
+         "duration":"3 months","stipend":"â‚¹15,000/month","url":"https://niti.gov.in",
          "tags":["research","data","policy"],"match_score":45.0,"source":"govt_portal"},
     ]
     ok = send_daily_digest(
@@ -471,4 +471,5 @@ if __name__ == "__main__":
         user_name="Rushikesh Baban Kedar",
         all_skills=["python","pandas","xgboost","scikit-learn","econometrics"]
     )
-    print("✅ Email sent!" if ok else "❌ Failed — check searchy.env")
+    print("âœ… Email sent!" if ok else "âŒ Failed â€” check searchy.env")
+
