@@ -265,10 +265,12 @@ def get_stats(db_path: Optional[str] = None) -> dict:
         return {
             "total_jobs":      total,
             "new_today":       new_today,
-            "top_match_score": round(top_score, 2),
+            "top_score":       round(top_score, 1),
+            "top_match_score": round(top_score, 1),  # kept for backward compat
             "avg_score":       round(avg_score, 1),
             "notified":        notified,
             "saved":           saved,
+            "saved_jobs":      saved,  # kept for backward compat
         }
 
 

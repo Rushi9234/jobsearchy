@@ -310,17 +310,21 @@ def get_jobs():
     for j in jobs:
         if "match_score" in j and "score" not in j:
             j["score"] = j["match_score"]
-        if "job_type" not in j:
+        if "job_type" not in j or not j.get("job_type"):
             src   = (j.get("source",  "") or "").lower()
             title = (j.get("title",   "") or "").lower()
+            tags  = " ".join(j.get("tags", []) if isinstance(j.get("tags"), list) else [])
+            combined = title + " " + src + " " + tags.lower()
             if any(s in src for s in ["unstop", "devfolio", "hackerearth"]) or \
-               any(k in title for k in ["hackathon", "challenge", "competition", "datathon"]):
+               any(k in combined for k in ["hackathon", "challenge", "competition", "datathon", "ideathon", "sprint"]):
                 j["job_type"] = "hackathon"
-            elif any(s in src for s in ["govt_internshala", "govt_portal", "linkedin_govt",
+            elif any(s in src for s in ["govt_internshala", "govt_portal", "govt", "linkedin_govt",
                                          "niti_aayog", "mygov"]) or \
-                 any(k in title for k in ["government", "niti aayog", "isro", "drdo", "aicte"]):
+                 any(k in title for k in ["government", "niti aayog", "isro", "drdo", "aicte",
+                                           "csir", "nabard", "nic", "meity", "dst", "rbi", "sebi"]):
                 j["job_type"] = "govt"
-            elif "internship" in title or "intern" in title or "internshala" in src:
+            elif "internship" in title or "intern" in title or "internshala" in src or \
+                 any(k in title for k in ["trainee", "apprentice"]):
                 j["job_type"] = "internship"
             else:
                 j["job_type"] = "job"
