@@ -7,6 +7,10 @@
 
 ---
 
+![Landing Page](screenshots/landing.png)
+
+---
+
 ## 🎯 What It Does
 
 | Step | What happens |
@@ -21,15 +25,65 @@
 
 ---
 
+## 📸 Screenshots
+
+### Resume Upload
+
+![Resume Upload](screenshots/resume_upload.png)
+
+*Drop your resume (PDF, DOCX, DOC) — skills are extracted automatically*
+
+---
+
+### AI Resume Parsing
+
+![Resume Parsed](screenshots/resume_parsed.png)
+
+*28 skills extracted instantly. Shows degree, CGPA 7.43, Year 3, and Find My Jobs button*
+
+---
+
+### Live Job Search with AI Score Rings
+
+![All Jobs](screenshots/all_jobs.png)
+
+*Pipeline running in real time — all 7 scrapers report progress, jobs appear with 0–100 AI match score rings*
+
+---
+
+### Skill Gap Analysis
+
+![Skill Gaps](screenshots/skill_gaps.png)
+
+*Domain-aware gap analysis for AI/ML track — shows missing high-demand skills (MLflow 82%, PyTorch 78%, HuggingFace 75%) with market frequency bars and direct YouTube learn links*
+
+---
+
+### AI Skill Flashcards
+
+![Flashcards](screenshots/flashcards.png)
+
+*40 flashcards across 7 categories (Python, ML & AI, Web Dev, Database, DevOps, Stats & Research) — auto-opens while pipeline runs, tap to flip*
+
+---
+
+### Email Digest
+
+![Email Digest](screenshots/email_digest.png)
+
+*Personalised HTML email — subject line shows top score, stats summary (50 found, 63 top score, 42 above 50), job cards with Apply buttons*
+
+---
+
 ## 🚀 Features
 
 - **AI Resume Matching** — TF-IDF + cosine similarity scores every job against your actual skills
 - **7 Live Scrapers** — Internshala, LinkedIn, Unstop, Devfolio, HackerEarth, Govt portals running in parallel
 - **React Dashboard** — 8 tabs: All Jobs, Top Matches, Saved, Analytics, My Applications, Hackathons, Skill Gaps, Resume
 - **Arc Gauge Score Rings** — visual 0–100 match score on every job card
-- **Application Tracker** — track Applied / Interview / Offer / Rejected, saved to DB
+- **Application Tracker** — track Applied / Interview / Offer / Rejected, saved to SQLite DB
 - **Skill Gap Analysis** — domain-aware gaps (AI/ML, Web Dev, DevOps, Research) with YouTube learn links
-- **AI Skill Flashcards** — 35 cards with full learning content, generated during pipeline run
+- **AI Skill Flashcards** — 40 cards with full learning content across 7 categories
 - **Email Digest** — personalised HTML email with top job matches, Gmail SSL port 465
 - **Telegram Alerts** — real-time bot notifications for high-match jobs
 - **WhatsApp Share** — one-tap share of top 5 jobs via wa.me deep link
@@ -62,10 +116,10 @@ jobsearchy/
 │   └── filters.py          ← Job filtering — removes spam, keeps internships/hackathons
 │
 ├── scrapers/
-│   ├── internshala_scraper.py   ← ~345 listings/run
-│   ├── company_scraper.py       ← LinkedIn ~244 listings/run
-│   ├── unstop_scraper.py        ← Hackathons
-│   ├── devfolio_scraper.py      ← Hackathons
+│   ├── internshala_scraper.py   ← ~347 listings/run
+│   ├── company_scraper.py       ← LinkedIn ~257 listings/run
+│   ├── unstop_scraper.py        ← Hackathons — 30 listings/run
+│   ├── devfolio_scraper.py      ← Hackathons — 20 listings/run
 │   ├── hackerearth_scraper.py   ← Coding challenges
 │   ├── wellfound_scraper.py     ← Startup jobs
 │   └── naukri_scraper.py        ← Fresher jobs
@@ -207,7 +261,7 @@ This project is deployed on [Render.com](https://render.com) free tier.
 | Jobs scraped per run | 500+ |
 | Active scrapers | 7 |
 | Jobs in DB | 1483+ |
-| Top match score | 64.2% |
+| Top match score | 64/100 |
 | Auto-scan schedule | 4× daily |
 | Email delivery | Gmail SSL, 500/day free |
 | Deployment | Live on Render |
