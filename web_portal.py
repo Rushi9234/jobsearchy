@@ -39,6 +39,11 @@ scrape_govt        = _safe_import('scrape_govt_jobs',   'scrapers.govt_scraper')
 from notifiers.email_notifier import send_daily_digest
 
 app = Flask(__name__, static_folder="static", template_folder="static")
+@app.after_request
+def allow_iframe(response):
+    response.headers['X-Frame-Options'] = 'ALLOWALL'
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://rushi9234.github.io https://*.github.io;"
+    return response
 
 UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {"pdf", "docx", "doc"}
