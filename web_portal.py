@@ -299,121 +299,6 @@ def _build_personalized_keywords(profile: dict, max_keywords: int = 6) -> list:
     return out[:max_keywords]
 
 
-
-    global pipeline_status
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    import threading
-
-    def _watchdog():
-        import time
-        time.sleep(180)
-        if pipeline_status.get("running"):
-            pipeline_status["running"]  = False
-            pipeline_status["message"]  = "Pipeline timed out — partial results saved."
-            pipeline_status["progress"] = 100
-            print("[Pipeline] Watchdog triggered — forced completion after 3 min")
-    threading.Thread(target=_watchdog, daemon=True).start()
-
-    pipeline_status = {"running": True, "message": "Loading profile...", "progress": 5}
-    try:
-        if not os.path.exists("profile.json"):
-            pipeline_status = {"running": False, "message": "Upload resume first!", "progress": 0}
-            return
-
-        with open("profile.json") as f:
-            profile = json.load(f)
-
-        # ── Personalized keyword selection (v2) ────────────────────────────
-        # Instead of hardcoded generics, build keywords from:
-        #   1. User's top-confidence skills (from weighted_skills if available)
-        #   2. User's detected domain → generic boosters for that domain
-        #   3. Optional: user's saved jobs → infer preferred topics (future)
-        keywords = _build_personalized_keywords(profile)
-        print(f"[Pipeline] Personalized keywords for {profile.get('name', 'user')}: {keywords}")
-
-        pipeline_status["message"]  = f"Searching for: {', '.join(keywords[:3])}..."
-        pipeline_status["progress"] = 15
-
-        scraper_configs = [
-            ("Internshala", scrape_internshala, keywords,  "internship"),
-            ("LinkedIn",    scrape_linkedin,    keywords,  "job"),
-            ("Wellfound",   scrape_wellfound,   keywords,  "job"),
-            ("Unstop",      scrape_unstop,      keywords,  "hackathon"),
-            ("Devfolio",    scrape_devfolio,    keywords,  "hackathon"),
-            ("HackerEarth", scrape_hackerearth, keywords,  "hackathon"),
-            ("Naukri",      scrape_naukri,      keywords,  "job"),
-            ("Govt",        lambda **kw: scrape_govt(), None, "internship"),
-        ]
-
-        all_jobs      = []
-        scraper_results = {}
-        progress_step = 40 / len(scraper_configs)
-
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            future_to_name = {
-                executor.submit(_run_scraper, name, fn, kw, jtype): name
-                for name, fn, kw, jtype in scraper_configs
-            }
-            completed = 0
-            for future in as_completed(future_to_name):
-                name = future_to_name[future]
-                try:
-                    jobs = future.result(timeout=20)
-                    scraper_results[name] = len(jobs)
-                    all_jobs.extend(jobs)
-                    print(f"[Pipeline] {name}: {len(jobs)} jobs")
-                except Exception as e:
-                    scraper_results[name] = 0
-                    print(f"[Pipeline] {name} failed: {e}")
-                completed += 1
-                pipeline_status["message"]  = f"Scraped {name} ({completed}/{len(scraper_configs)})..."
-                pipeline_status["progress"] = int(15 + completed * progress_step)
-
-        summary = " | ".join(f"{k}:{v}" for k, v in scraper_results.items())
-        print(f"[Pipeline] Totals — {summary}")
-        pipeline_status["message"]  = f"Found {len(all_jobs)} raw jobs across all sources..."
-        pipeline_status["progress"] = 60
-
-        pipeline_status["message"]  = f"Filtering & scoring {len(all_jobs)} jobs..."
-        pipeline_status["progress"] = 65
-        accepted, _ = filter_jobs(all_jobs)
-
-        pipeline_status["message"]  = f"AI scoring + coverage for {len(accepted)} jobs..."
-        pipeline_status["progress"] = 75
-        result = batch_score_and_coverage(dict(profile), accepted)
-        scored_jobs = result if (result and isinstance(result[0], dict)) else [
-            {**job, "score": round(float(s), 2)} for job, s in zip(accepted, result)
-        ]
-
-        pipeline_status["message"]  = "Saving to database..."
-        pipeline_status["progress"] = 90
-        seen_this_run = set()
-        new_count = 0
-        for job in scored_jobs:
-            job_id = job.get("job_id") or job.get("id", "")
-            source = job.get("source", "")
-            if not job_id or job_id in seen_this_run:
-                continue
-            seen_this_run.add(job_id)
-            if "score" in job and "match_score" not in job:
-                job["match_score"] = job["score"]
-            if not is_seen(job_id, source):
-                insert_job(job)
-                mark_seen(job_id, source)
-                new_count += 1
-
-        pipeline_status = {
-            "running":         False,
-            "message":         f"Done! {new_count} new jobs added from {len([v for v in scraper_results.values() if v>0])}/8 sources.",
-            "progress":        100,
-            "scraper_results": scraper_results,
-        }
-    except Exception as e:
-        import traceback
-        pipeline_status = {"running": False, "message": f"Error: {str(e)}", "progress": 0}
-        print(traceback.format_exc())
-
-
 def run_pipeline_thread(days=7):
     """
     The actual background pipeline. Scrapes all sources in parallel,
@@ -425,12 +310,12 @@ def run_pipeline_thread(days=7):
     import time as _time
 
     def _watchdog():
-        _time.sleep(180)
+        _time.sleep(600)  # 10 min — Render free tier is slow, govt scraper is slow
         if pipeline_status.get("running"):
             pipeline_status["running"]  = False
-            pipeline_status["message"]  = "Pipeline timed out — partial results saved."
+            pipeline_status["message"]  = "Pipeline timed out after 10 min — partial results saved."
             pipeline_status["progress"] = 100
-            print("[Pipeline] Watchdog triggered — forced completion after 3 min")
+            print("[Pipeline] Watchdog triggered — forced completion after 10 min")
     threading.Thread(target=_watchdog, daemon=True).start()
 
     pipeline_status = {"running": True, "message": "Loading profile...", "progress": 5}
@@ -473,7 +358,7 @@ def run_pipeline_thread(days=7):
             for future in as_completed(future_to_name):
                 name = future_to_name[future]
                 try:
-                    jobs = future.result(timeout=20)
+                    jobs = future.result(timeout=60)
                     scraper_results[name] = len(jobs)
                     all_jobs.extend(jobs)
                     print(f"[Pipeline] {name}: {len(jobs)} jobs")

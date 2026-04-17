@@ -477,7 +477,7 @@ function JobCard({job,onSave,idx}){
                   padding:'8px 18px',fontSize:13,fontWeight:700,cursor:'pointer',
                   fontFamily:'Bricolage Grotesque',letterSpacing:'-.2px',
                   boxShadow:'0 2px 8px rgba(67,56,202,.25)',transition:'all .2s'
-                }}>Apply →</button>
+                }}>Apply<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
               </a>
             )}
             <button onClick={handleSave} disabled={saving}
@@ -488,7 +488,7 @@ function JobCard({job,onSave,idx}){
                 borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,
                 cursor:'pointer',fontFamily:'DM Sans',transition:'all .2s'
               }}>
-              {saving?<span className="spinner spinner-d"/>:(saved?'★ Saved':'☆ Save')}
+              {saving?<span className="spinner spinner-d"/>:(saved?(<><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginRight:4}}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Saved</>):(<><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginRight:4}}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Save</>))}
             </button>
           </div>
         </div>
@@ -519,7 +519,7 @@ function Hero({onStart}){
           <h1 className="hero-h">Find your dream <span className="ac">internship</span> on autopilot</h1>
           <p className="hero-p">Upload your resume once. JobSearchy scans 7 platforms daily — Internshala, LinkedIn, Unstop, Devfolio and more — scores every listing against your actual skills, and shows you only what fits.</p>
           <div className="hero-cta">
-            <button className="btn-main" onClick={onStart}>Get started free →</button>
+            <button className="btn-main" onClick={onStart}>Get started free<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
             <button className="btn-out" onClick={onStart}>See how it works</button>
           </div>
           <div className="hero-stats">
@@ -532,12 +532,12 @@ function Hero({onStart}){
           <div className="fc fc1">
             <div className="fc-co">Google</div>
             <div className="fc-ti">ML Engineer Intern</div>
-            <div className="fc-row"><span className="fc-sc">✓ 78%</span><span className="fc-loc">Bangalore</span></div>
+            <div className="fc-row"><span className="fc-sc"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-1px",marginRight:3}}><polyline points="20 6 9 17 4 12"/></svg>78%</span><span className="fc-loc">Bangalore</span></div>
           </div>
           <div className="fc fc2">
             <div className="fc-co">Razorpay</div>
             <div className="fc-ti">Backend Intern</div>
-            <div className="fc-row"><span className="fc-sc">✓ 65%</span><span className="fc-tag">Python</span></div>
+            <div className="fc-row"><span className="fc-sc"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-1px",marginRight:3}}><polyline points="20 6 9 17 4 12"/></svg>65%</span><span className="fc-tag">Python</span></div>
           </div>
           <div className="main-fc">
             <div className="mfc-hd"><div className="mfc-title">AI Match Score</div><div className="mfc-sub">Based on your resume</div></div>
@@ -546,18 +546,18 @@ function Hero({onStart}){
               {[['Skill overlap','85%',85],['Education fit','70%',70],['Experience','60%',60]].map(([l,v,w])=>(
                 <div key={l}><div className="mfc-bl"><span>{l}</span><span>{v}</span></div><div className="mfc-b"><div className="mfc-bf" style={{width:`${w}%`}}/></div></div>
               ))}
-              <button className="mfc-btn">Apply Now →</button>
+              <button className="mfc-btn">Apply Now<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
             </div>
           </div>
           <div className="fc fc3">
             <div className="fc-co">Microsoft</div>
             <div className="fc-ti">Data Science Intern</div>
-            <div className="fc-row"><span className="fc-sc">✓ 71%</span><span className="fc-loc">Hyderabad</span></div>
+            <div className="fc-row"><span className="fc-sc"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-1px",marginRight:3}}><polyline points="20 6 9 17 4 12"/></svg>71%</span><span className="fc-loc">Hyderabad</span></div>
           </div>
           <div className="fc fc4">
             <div className="fc-co">Unstop Hackathon</div>
             <div className="fc-ti">Smart India 2025</div>
-            <div className="fc-row"><span className="fc-sc">✓ 58%</span><span className="fc-tag">AI</span></div>
+            <div className="fc-row"><span className="fc-sc"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-1px",marginRight:3}}><polyline points="20 6 9 17 4 12"/></svg>58%</span><span className="fc-tag">AI</span></div>
           </div>
         </div>
       </div>
@@ -582,7 +582,7 @@ function ResumeTab({profile,setProfile,showToast,onGoToJobs}){
     setUploading(false);
     if(res.error){showToast(res.error,'error');return;}
     setProfile(res.profile);
-    showToast(`✓ Resume parsed — ${fl(res.profile.skills).length} skills found! Now click Find My Jobs`,'success');
+    showToast(`Resume parsed — ${fl(res.profile.skills).length} skills found! Now click Find My Jobs`,'success');
   }
 
   async function findMyJobs(){
@@ -654,7 +654,7 @@ function ResumeTab({profile,setProfile,showToast,onGoToJobs}){
                 Scans 7 platforms, scores every listing against your resume, shows only what fits
               </div>
               {pipelineDone&&(
-                <div style={{fontSize:11,color:'#86efac',fontWeight:600,marginTop:6}}>✓ Done! Check Top Matches tab</div>
+                <div style={{fontSize:11,color:'#86efac',fontWeight:600,marginTop:6}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginRight:4}}><polyline points="20 6 9 17 4 12"/></svg>Done! Check Top Matches tab</div>
               )}
             </div>
             <button onClick={findMyJobs} disabled={pipelineRunning} style={{
@@ -666,7 +666,7 @@ function ResumeTab({profile,setProfile,showToast,onGoToJobs}){
               fontFamily:'Bricolage Grotesque',transition:'all .2s',
               display:'flex',alignItems:'center',justifyContent:'center',gap:8,
             }}>
-              {pipelineRunning?<><span className="spinner"/>Searching all platforms...</>:'Find My Jobs →'}
+              {pipelineRunning?<><span className="spinner"/>Searching all platforms...</>:(<>Find My Jobs<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></>)}
             </button>
           </div>
         )}
@@ -806,7 +806,7 @@ function JobsTab({showToast,mode}){
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
           <span style={{fontSize:13,color:'#1d4ed8',fontWeight:500,flex:1}}>Get these job matches in your inbox</span>
           {barSent?(
-            <span style={{fontSize:13,color:'#16a34a',fontWeight:700}}>✓ Sent!</span>
+            <span style={{fontSize:13,color:'#16a34a',fontWeight:700}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginRight:4}}><polyline points="20 6 9 17 4 12"/></svg>Sent!</span>
           ):(
             <>
               <input className="inp" placeholder="your@email.com" value={barEmail}
@@ -825,11 +825,11 @@ function JobsTab({showToast,mode}){
                 }
               }} disabled={barSent==='sending'||barSent===true}
               style={{background:'#1d4ed8',color:'#fff',border:'none',borderRadius:7,padding:'7px 14px',fontSize:12,fontWeight:600,cursor:barSent?'not-allowed':'pointer',fontFamily:"DM Sans",display:'flex',alignItems:'center',gap:5,minWidth:70,justifyContent:'center'}}>
-                {barSent==='sending'?<><span className="spinner" style={{width:10,height:10,borderWidth:1.5}}/>...</>:barSent===true?'✓ Sent':'Send'}
+                {barSent==='sending'?<><span className="spinner" style={{width:10,height:10,borderWidth:1.5}}/>...</>:barSent===true?(<><span style={{display:'inline-flex',alignItems:'center',gap:3}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px"}}><polyline points="20 6 9 17 4 12"/></svg>Sent</span></>):'Send'}
               </button>
             </>
           )}
-          <button onClick={()=>setShowEmailBar(false)} style={{background:'transparent',border:'none',color:'#93c5fd',cursor:'pointer',fontSize:16,padding:4}}>✕</button>
+          <button onClick={()=>setShowEmailBar(false)} style={{background:'transparent',border:'none',color:'#93c5fd',cursor:'pointer',fontSize:16,padding:4}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px"}}><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
       )}
       {/* Category tabs */}
@@ -1425,7 +1425,7 @@ function AppTrackerTab({showToast}){
             </div>
             <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
               <select value={e.stage} onChange={ev=>updateStage(e.id,ev.target.value)} style={{fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:8,border:'1.5px solid '+st.border,background:st.bg,color:st.color,cursor:'pointer',fontFamily:'Inter',outline:'none'}}>{APP_STAGES.map(s=><option key={s}>{s}</option>)}</select>
-              <button onClick={()=>remove(e.id)} style={{background:'transparent',border:'none',color:'var(--g300)',cursor:'pointer',fontSize:16,padding:'2px 4px'}}>✕</button>
+              <button onClick={()=>remove(e.id)} style={{background:'transparent',border:'none',color:'var(--g300)',cursor:'pointer',fontSize:16,padding:'2px 4px'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px"}}><path d="M18 6L6 18M6 6l12 12"/></svg></button>
             </div>
           </div>
         </div>
@@ -1641,8 +1641,8 @@ function SkillFlashCards({skills,visible,onDismiss}){
             {sorted.length>8&&<span style={{fontSize:10,color:'#94a3b8',marginLeft:4,alignSelf:'center'}}>+{sorted.length-8}</span>}
           </div>
           <div style={{display:'flex',gap:7}}>
-            <button onClick={()=>{setCurrent(c=>(c-1+sorted.length)%sorted.length);setFlipped(false);}} style={{background:'#f1f5f9',border:'none',borderRadius:9,padding:'8px 16px',fontSize:12,color:'#334155',cursor:'pointer',fontWeight:700}}>← Prev</button>
-            <button onClick={()=>{setCurrent(c=>(c+1)%sorted.length);setFlipped(false);}} style={{background:'#4338ca',border:'none',borderRadius:9,padding:'8px 16px',fontSize:12,color:'#fff',cursor:'pointer',fontWeight:700,boxShadow:'0 2px 8px rgba(67,56,202,.3)'}}>Next →</button>
+            <button onClick={()=>{setCurrent(c=>(c-1+sorted.length)%sorted.length);setFlipped(false);}} style={{background:'#f1f5f9',border:'none',borderRadius:9,padding:'8px 16px',fontSize:12,color:'#334155',cursor:'pointer',fontWeight:700}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginRight:4}}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Prev</button>
+            <button onClick={()=>{setCurrent(c=>(c+1)%sorted.length);setFlipped(false);}} style={{background:'#4338ca',border:'none',borderRadius:9,padding:'8px 16px',fontSize:12,color:'#fff',cursor:'pointer',fontWeight:700,boxShadow:'0 2px 8px rgba(67,56,202,.3)'}}>Next<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
           </div>
         </div>
       </div>
@@ -1728,7 +1728,7 @@ function PipelinePanel({showToast,onFindJobs,findRunning,profile}){
             <div className="rp-title">Find Jobs</div>
             <button onClick={onFindJobs} disabled={findRunning}
               style={{width:'100%',padding:'11px',background:findRunning?'#6366f1':'#4338ca',color:'#fff',border:'none',borderRadius:10,fontSize:13,fontWeight:700,cursor:findRunning?'not-allowed':'pointer',fontFamily:'Bricolage Grotesque',transition:'all .2s',display:'flex',alignItems:'center',justifyContent:'center',gap:7,boxShadow:'0 2px 8px rgba(67,56,202,.25)'}}>
-              {findRunning?<><span className="spinner"/>Searching...</>:'Find My Jobs →'}
+              {findRunning?<><span className="spinner"/>Searching...</>:(<>Find My Jobs<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></>)}
             </button>
           </div>
           <div className="div"/>
@@ -1752,7 +1752,7 @@ function PipelinePanel({showToast,onFindJobs,findRunning,profile}){
         <div className="rp-title">Run Pipeline</div>
         <div style={{display:'flex',gap:6}}>
           <button className="run-btn" onClick={run} disabled={status.running} style={{flex:1}}>
-            {status.running?<><span className="spinner"/>Running…</>:'▶  Run Pipeline'}
+            {status.running?<><span className="spinner"/>Running…</>:(<><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{display:"inline-block",verticalAlign:"-1px",marginRight:6}}><path d="M8 5v14l11-7z"/></svg>Run Pipeline</>)}
           </button>
           {status.running&&(
             <button onClick={async()=>{
@@ -1767,7 +1767,7 @@ function PipelinePanel({showToast,onFindJobs,findRunning,profile}){
               border:'1.5px solid #fca5a5',borderRadius:10,
               fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Inter',
               whiteSpace:'nowrap',flexShrink:0,
-            }}>✕ Reset</button>
+            }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginRight:4}}><path d="M18 6L6 18M6 6l12 12"/></svg>Reset</button>
           )}
         </div>
         {(status.progress>0||funMsg)&&(
@@ -1912,7 +1912,7 @@ function App(){
           <div className="logo"><em>Job</em>Searchy</div>
           <div style={{display:'flex',gap:10,alignItems:'center'}}>
             {profile&&<div className="nav-pill"><div className="nav-av">{initial}</div>{displayName}</div>}
-            <button className="btn btn-p" onClick={()=>setView('app')}>Open Dashboard →</button>
+            <button className="btn btn-p" onClick={()=>setView('app')}>Open Dashboard<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
           </div>
         </nav>
         <Hero onStart={()=>setView('app')}/>
@@ -1931,7 +1931,7 @@ function App(){
             <span style={{fontSize:13,fontWeight:500,color:'var(--g700)'}}>{profile.name}</span>
           </div>
         ):(
-          <button className="btn btn-p" onClick={()=>setTab('resume')} style={{fontSize:12,padding:'7px 14px'}}>Upload Resume →</button>
+          <button className="btn btn-p" onClick={()=>setTab('resume')} style={{fontSize:12,padding:'7px 14px'}}>Upload Resume<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
         )}
       </nav>
       <div className="app">
@@ -1982,7 +1982,7 @@ function App(){
                 setTimeout(()=>setShowFlashCards(true),800);
                 const r=await api.post('/api/run-pipeline',{days:7});
                 if(r.error){showToast(r.error,'error');setAppPipelineRunning(false);return;}
-                showToast('🔍 Searching jobs...','info');
+                showToast('Searching jobs...','info');
                 const iv=setInterval(async()=>{
                   const s=await api.get('/api/pipeline-status');
                   if(s&&!s.running){
@@ -2003,7 +2003,7 @@ function App(){
       {showEmailPopup&&(
         <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,0.5)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',animation:'fadeIn .2s ease'}}>
           <div style={{background:'#fff',borderRadius:20,padding:'32px',width:420,boxShadow:'0 20px 60px rgba(0,0,0,.2)',position:'relative',animation:'fadeUp .3s cubic-bezier(.16,1,.3,1)'}}>
-            <button onClick={()=>{setShowEmailPopup(false);setTab('top');}} style={{position:'absolute',top:14,right:14,background:'var(--g100)',border:'none',borderRadius:'50%',width:28,height:28,cursor:'pointer',fontSize:14,color:'var(--g500)',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+            <button onClick={()=>{setShowEmailPopup(false);setTab('top');}} style={{position:'absolute',top:14,right:14,background:'var(--g100)',border:'none',borderRadius:'50%',width:28,height:28,cursor:'pointer',fontSize:14,color:'var(--g500)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px"}}><path d="M18 6L6 18M6 6l12 12"/></svg></button>
             {popupSent?(
               <div style={{textAlign:'center',padding:'16px 0'}}>
                 
@@ -2031,7 +2031,7 @@ function App(){
                       <div style={{fontSize:11,color:'var(--g400)',marginBottom:1}}>Use email from resume</div>
                       <div style={{fontWeight:700}}>{profile.email}</div>
                     </div>
-                    {popupEmail===profile.email&&<span style={{marginLeft:'auto',color:'var(--i600)'}}>✓</span>}
+                    {popupEmail===profile.email&&<span style={{marginLeft:'auto',color:'var(--i600)'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px"}}><polyline points="20 6 9 17 4 12"/></svg></span>}
                   </button>
                 )}
                 <input
