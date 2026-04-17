@@ -1,4 +1,4 @@
-"""
+﻿"""
 email_notifier.py — JobSearchy Email Notifier
 Sends a professional HTML digest email via Gmail SMTP.
 Completely free — only needs a Gmail app password.

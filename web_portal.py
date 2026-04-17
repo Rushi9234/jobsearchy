@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from utils.resume_parser import parse_resume
-from utils.matcher import batch_score
+from utils.matcher import batch_score, batch_score_and_coverage, coverage_score, explain_score as matcher_explain
 from utils.filters import filter_jobs
 from database.db import (
     init_db, get_all_jobs, get_top_jobs, get_saved_jobs,
@@ -19,6 +19,15 @@ from database.db import (
 )
 from scrapers.internshala_scraper import scrape as scrape_internshala
 from scrapers.company_scraper import scrape_linkedin
+
+# Gemini AI helper (optional — system works without it, just uses fallbacks)
+try:
+    from utils.gemini_helper import get_skill_content, explain_score_prose, _init_cache_table
+    _init_cache_table()
+    GEMINI_ENABLED = True
+except Exception as e:
+    print(f"[Gemini] Helper not available: {e}")
+    GEMINI_ENABLED = False
 
 logger = logging.getLogger("jobsearchy")
 logging.basicConfig(level=logging.INFO)
@@ -228,8 +237,69 @@ def get_profile():
         return jsonify(json.load(f))
 
 
-# ── Run pipeline ──────────────────────────────────────────────────────────────
-def run_pipeline_thread(days=7):
+# ── Smart keyword builder for personalized scraping ──────────────────────────
+DOMAIN_BOOSTERS = {
+    "aiml":        ["machine learning", "deep learning", "ai intern", "ml engineer"],
+    "datascience": ["data science", "data analyst", "python data", "analytics intern"],
+    "webdev":      ["full stack", "frontend developer", "backend developer", "react intern"],
+    "devops":      ["devops", "cloud engineer", "sre intern", "kubernetes"],
+    "research":    ["research intern", "quantitative research", "data research"],
+    "entc":        ["embedded", "electronics intern", "iot intern", "vlsi"],
+}
+
+
+def _build_personalized_keywords(profile: dict, max_keywords: int = 6) -> list:
+    """
+    Build scraping keywords tailored to this user's resume.
+
+    Strategy:
+      1. Start with top-confidence weighted skills (if v2 parser was used)
+      2. Fall back to flat skills list
+      3. Add domain-specific booster terms
+      4. Deduplicate and cap
+    """
+    keywords = []
+
+    # 1. Weighted skills (v2) — take the highest-confidence non-generic ones
+    weighted = profile.get("weighted_skills") or []
+    if weighted:
+        # Skip very short/generic skills that make bad search terms
+        BAD_QUERY_SKILLS = {"c", "r", "go", "ai", "ml", "nlp", "cv", "git", "api", "rest", "sql", "html", "css", "ui"}
+        high_conf = [
+            w["skill"] for w in weighted
+            if w.get("confidence", 0) >= 0.75 and w["skill"].lower() not in BAD_QUERY_SKILLS
+        ]
+        keywords.extend(high_conf[:4])
+
+    # 2. Fall back to flat skills list
+    if not keywords:
+        flat = flatten_skills(profile.get("skills", []))
+        BAD = {"c", "r", "go", "git", "api"}
+        keywords = [s for s in flat if s.lower() not in BAD and len(s) >= 3][:4]
+
+    # 3. Add domain boosters
+    domain = profile.get("domain", "datascience")
+    boosters = DOMAIN_BOOSTERS.get(domain, DOMAIN_BOOSTERS["datascience"])
+    for b in boosters[:2]:
+        if b not in keywords:
+            keywords.append(b)
+
+    # 4. Hard fallback if still empty
+    if not keywords:
+        keywords = ["python", "data science", "machine learning"]
+
+    # Dedup preserving order
+    seen = set()
+    out = []
+    for k in keywords:
+        kl = k.lower()
+        if kl not in seen:
+            seen.add(kl)
+            out.append(k)
+    return out[:max_keywords]
+
+
+
     global pipeline_status
     from concurrent.futures import ThreadPoolExecutor, as_completed
     import threading
@@ -253,10 +323,15 @@ def run_pipeline_thread(days=7):
         with open("profile.json") as f:
             profile = json.load(f)
 
-        all_skills = flatten_skills(profile.get("skills", []))
-        keywords = all_skills[:6] if all_skills else ["python", "data science", "machine learning"]
+        # ── Personalized keyword selection (v2) ────────────────────────────
+        # Instead of hardcoded generics, build keywords from:
+        #   1. User's top-confidence skills (from weighted_skills if available)
+        #   2. User's detected domain → generic boosters for that domain
+        #   3. Optional: user's saved jobs → infer preferred topics (future)
+        keywords = _build_personalized_keywords(profile)
+        print(f"[Pipeline] Personalized keywords for {profile.get('name', 'user')}: {keywords}")
 
-        pipeline_status["message"]  = "Launching all scrapers in parallel..."
+        pipeline_status["message"]  = f"Searching for: {', '.join(keywords[:3])}..."
         pipeline_status["progress"] = 15
 
         scraper_configs = [
@@ -303,9 +378,9 @@ def run_pipeline_thread(days=7):
         pipeline_status["progress"] = 65
         accepted, _ = filter_jobs(all_jobs)
 
-        pipeline_status["message"]  = f"AI scoring {len(accepted)} jobs..."
+        pipeline_status["message"]  = f"AI scoring + coverage for {len(accepted)} jobs..."
         pipeline_status["progress"] = 75
-        result = batch_score(dict(profile), accepted)
+        result = batch_score_and_coverage(dict(profile), accepted)
         scored_jobs = result if (result and isinstance(result[0], dict)) else [
             {**job, "score": round(float(s), 2)} for job, s in zip(accepted, result)
         ]
@@ -414,7 +489,52 @@ def get_jobs():
         jobs = [j for j in jobs if s in (j.get("title",   "") or "").lower()
                                 or s in (j.get("company", "") or "").lower()]
 
+    # ── Coverage score (Rushi's idea) — computed on-the-fly ─────────────────
+    # If profile exists, compute what % of each job's required skills user has.
+    # Cheap enough to do for <500 jobs; for larger lists, only compute top N.
+    try:
+        if os.path.exists("profile.json"):
+            with open("profile.json") as f:
+                profile = json.load(f)
+            profile_skills = (
+                profile.get("summary", {}).get("all_skills")
+                or flatten_skills(profile.get("skills", []))
+            )
+            if profile_skills:
+                # Only compute for first 200 jobs for speed
+                for j in jobs[:200]:
+                    cov = coverage_score(profile_skills, j)
+                    j["coverage_pct"]   = cov["coverage_pct"]
+                    j["coverage_level"] = cov["level"]
+                    j["coverage_matched"] = cov["matched"]
+                    j["coverage_missing"] = cov["missing"]
+    except Exception as e:
+        logger.warning("[api/jobs] coverage computation failed: %s", e)
+
+    # Coverage filter — "show only jobs I can apply to with confidence"
+    min_cov = request.args.get("min_coverage", 0, type=int)
+    if min_cov > 0:
+        jobs = [j for j in jobs if j.get("coverage_pct", 0) >= min_cov]
+
     return jsonify(jobs)
+
+
+@app.route("/api/jobs/<int:job_id>/coverage", methods=["GET"])
+def get_job_coverage(job_id):
+    """Get coverage score for a single job."""
+    if not os.path.exists("profile.json"):
+        return jsonify({"error": "No profile"}), 400
+    with open("profile.json") as f:
+        profile = json.load(f)
+    profile_skills = (
+        profile.get("summary", {}).get("all_skills")
+        or flatten_skills(profile.get("skills", []))
+    )
+    jobs = get_all_jobs(limit=100000)
+    job = next((j for j in jobs if j.get("id") == job_id), None)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify(coverage_score(profile_skills, job))
 
 
 @app.route("/api/jobs/top", methods=["GET"])
@@ -545,6 +665,264 @@ def pipeline_reset():
     global pipeline_status
     pipeline_status = {"running": False, "message": "Reset by user.", "progress": 0}
     return jsonify({"success": True})
+
+
+# ── AI Skill Content API (Gemini-powered) ─────────────────────────────────────
+@app.route("/api/skill-content", methods=["GET"])
+def skill_content():
+    """
+    Get AI-generated content for a skill.
+    Query params:
+      skill        — the skill name (required)
+      content_type — 'flashcard' | 'deep_dive' | 'gap_reason' (default: flashcard)
+    Response is cached in SQLite — same skill only costs 1 API call globally.
+    """
+    skill = (request.args.get("skill") or "").strip()
+    content_type = request.args.get("content_type", "flashcard")
+    if not skill:
+        return jsonify({"error": "skill query param required"}), 400
+    if not GEMINI_ENABLED:
+        return jsonify({"error": "Gemini helper not available"}), 503
+
+    content = get_skill_content(skill, content_type)
+    if content is None:
+        return jsonify({"error": "Could not generate content"}), 500
+    return jsonify({"skill": skill, "content_type": content_type, "content": content})
+
+
+@app.route("/api/flashcards-for-profile", methods=["GET"])
+def flashcards_for_profile():
+    """
+    Returns flashcards for every skill in the user's profile.
+    Each flashcard is cached, so repeat calls are instant and free.
+    """
+    if not os.path.exists("profile.json"):
+        return jsonify({"error": "No profile. Upload resume first."}), 400
+    if not GEMINI_ENABLED:
+        return jsonify({"error": "Gemini helper not available"}), 503
+
+    with open("profile.json") as f:
+        profile = json.load(f)
+    skills = flatten_skills(profile.get("skills", []))
+    limit = int(request.args.get("limit", 15))
+    skills = skills[:limit]
+
+    cards = []
+    for s in skills:
+        content = get_skill_content(s, "flashcard")
+        if content:
+            cards.append({"skill": s, "card": content})
+    return jsonify({"cards": cards, "total": len(cards)})
+
+
+# ── Score explainer ──────────────────────────────────────────────────────────
+@app.route("/api/explain-score/<int:job_id>", methods=["GET"])
+def explain_job_score(job_id):
+    """
+    Returns a detailed breakdown of why a specific job got its match score,
+    plus an AI-generated plain-English explanation.
+    """
+    if not os.path.exists("profile.json"):
+        return jsonify({"error": "No profile"}), 400
+    with open("profile.json") as f:
+        profile = json.load(f)
+
+    jobs = get_all_jobs(limit=100000)
+    job = next((j for j in jobs if j.get("id") == job_id), None)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+
+    details = matcher_explain(profile, job)
+
+    prose = None
+    if GEMINI_ENABLED:
+        prose = explain_score_prose(
+            details["total_score"],
+            job.get("title", ""),
+            job.get("company", ""),
+            details["matched_skills"],
+            details["missing_skills"],
+        )
+    details["ai_explanation"] = prose or ""
+    details["job"] = {
+        "id": job.get("id"),
+        "title": job.get("title"),
+        "company": job.get("company"),
+        "url": job.get("url"),
+        "source": job.get("source"),
+    }
+    return jsonify(details)
+
+
+# ── Manual profile editing ───────────────────────────────────────────────────
+@app.route("/api/profile/update", methods=["POST"])
+def update_profile():
+    """
+    Update fields of profile.json (add/remove skills, edit name, college, etc.).
+    Body: {field: value, field2: value2}. Only whitelisted fields can be changed.
+    Triggers a background rescore on skill changes.
+    """
+    if not os.path.exists("profile.json"):
+        return jsonify({"error": "No profile to edit. Upload a resume first."}), 400
+
+    data = request.get_json() or {}
+    ALLOWED_FIELDS = {"name", "email", "phone", "college", "current_course",
+                      "year_of_study", "skills", "projects", "experience",
+                      "certifications", "education"}
+    updates = {k: v for k, v in data.items() if k in ALLOWED_FIELDS}
+    if not updates:
+        return jsonify({"error": "No valid fields to update."}), 400
+
+    with open("profile.json") as f:
+        profile = json.load(f)
+
+    profile.update(updates)
+
+    # Keep summary.all_skills in sync if skills changed
+    if "skills" in updates:
+        skills_list = flatten_skills(updates["skills"])
+        profile["skills"] = skills_list
+        profile.setdefault("summary", {})["all_skills"] = skills_list
+
+    with open("profile.json", "w") as f:
+        json.dump(profile, f, indent=2)
+
+    # Kick off background rescore if skills changed
+    if "skills" in updates and not rescore_status.get("running"):
+        threading.Thread(target=_rescore_all_jobs, args=(profile,), daemon=True).start()
+
+    return jsonify({"success": True, "profile": profile, "rescoring": "skills" in updates})
+
+
+@app.route("/api/profile/add-skill", methods=["POST"])
+def add_skill():
+    """Adds a single skill to the profile."""
+    data = request.get_json() or {}
+    new_skill = (data.get("skill") or "").strip().lower()
+    if not new_skill:
+        return jsonify({"error": "skill required"}), 400
+
+    if not os.path.exists("profile.json"):
+        return jsonify({"error": "No profile"}), 400
+
+    with open("profile.json") as f:
+        profile = json.load(f)
+
+    skills = flatten_skills(profile.get("skills", []))
+    if new_skill in [s.lower() for s in skills]:
+        return jsonify({"error": "Skill already exists", "skills": skills}), 400
+
+    skills.append(new_skill)
+    profile["skills"] = skills
+    profile.setdefault("summary", {})["all_skills"] = skills
+
+    with open("profile.json", "w") as f:
+        json.dump(profile, f, indent=2)
+
+    if not rescore_status.get("running"):
+        threading.Thread(target=_rescore_all_jobs, args=(profile,), daemon=True).start()
+
+    return jsonify({"success": True, "skills": skills, "rescoring": True})
+
+
+@app.route("/api/profile/remove-skill", methods=["POST"])
+def remove_skill():
+    """Removes a single skill from the profile."""
+    data = request.get_json() or {}
+    skill_to_remove = (data.get("skill") or "").strip().lower()
+    if not skill_to_remove:
+        return jsonify({"error": "skill required"}), 400
+
+    if not os.path.exists("profile.json"):
+        return jsonify({"error": "No profile"}), 400
+
+    with open("profile.json") as f:
+        profile = json.load(f)
+
+    skills = flatten_skills(profile.get("skills", []))
+    filtered = [s for s in skills if s.lower() != skill_to_remove]
+    if len(filtered) == len(skills):
+        return jsonify({"error": "Skill not found", "skills": skills}), 404
+
+    profile["skills"] = filtered
+    profile.setdefault("summary", {})["all_skills"] = filtered
+
+    with open("profile.json", "w") as f:
+        json.dump(profile, f, indent=2)
+
+    if not rescore_status.get("running"):
+        threading.Thread(target=_rescore_all_jobs, args=(profile,), daemon=True).start()
+
+    return jsonify({"success": True, "skills": filtered, "rescoring": True})
+
+
+# ── User interaction tracking (for preference learning) ──────────────────────
+def _init_interactions_table():
+    """Tracks user interactions with jobs for future preference learning."""
+    import sqlite3
+    conn = sqlite3.connect("searchy.db")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_interactions (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id        INTEGER NOT NULL,
+            action        TEXT NOT NULL,
+            ts            REAL NOT NULL
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_interactions_action ON user_interactions(action)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_interactions_ts ON user_interactions(ts)")
+    conn.commit()
+    conn.close()
+
+
+# Init on import (safe — idempotent)
+try:
+    _init_interactions_table()
+except Exception as e:
+    print(f"[init] Could not create interactions table: {e}")
+
+
+@app.route("/api/track-interaction", methods=["POST"])
+def track_interaction():
+    """
+    Record a user action on a job. Used later to learn preferences.
+    Body: {job_id: int, action: 'view'|'click'|'save'|'unsave'|'apply'|'dismiss'}
+    """
+    import sqlite3, time
+    data = request.get_json() or {}
+    job_id = data.get("job_id")
+    action = (data.get("action") or "").strip().lower()
+    if not job_id or action not in {"view", "click", "save", "unsave", "apply", "dismiss"}:
+        return jsonify({"error": "job_id and valid action required"}), 400
+
+    try:
+        conn = sqlite3.connect("searchy.db")
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO user_interactions (job_id, action, ts) VALUES (?, ?, ?)",
+            (int(job_id), action, time.time()),
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/interaction-stats", methods=["GET"])
+def interaction_stats():
+    """Returns counts of each interaction type, useful for Analytics tab."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect("searchy.db")
+        cur = conn.cursor()
+        cur.execute("SELECT action, COUNT(*) FROM user_interactions GROUP BY action")
+        rows = cur.fetchall()
+        conn.close()
+        return jsonify({row[0]: row[1] for row in rows})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":

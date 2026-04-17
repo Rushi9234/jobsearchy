@@ -1,8 +1,17 @@
 """
-resume_parser.py — JobSearchy Resume Parser
+resume_parser.py — JobSearchy Resume Parser v2
 Supports: PDF, DOCX, DOC
-Extracts: name, email, phone, skills, education, year of study,
-          projects, experience, certifications → saves as profile.json
+Extracts: name, email, phone, skills, education, year of study, projects,
+          experience, certifications → saves as profile.json
+
+v2 improvements (Apr 17, 2026):
+  • Skill INFERENCE from project descriptions, experience bullets, and certs
+  • Confidence weighting per skill (explicit=1.0, experience=0.9, project=0.8, cert=0.7)
+  • Structured projects: title + description + inferred skills
+  • Structured experience: company + role + duration + inferred skills
+  • Structured certifications: name + issuer + inferred skills
+  • Expanded TECH_SKILLS dictionary (~250 skills, up from ~80)
+  • Portfolio link detection (github.io, vercel.app, netlify.app)
 """
 
 import re
@@ -12,7 +21,6 @@ import datetime
 from pathlib import Path
 from typing import Optional
 
-# ── PDF backends ─────────────────────────────────────────────────────────────
 try:
     import pdfplumber
     PDF_BACKEND = "pdfplumber"
@@ -23,7 +31,6 @@ except ImportError:
     except ImportError:
         PDF_BACKEND = None
 
-# ── DOCX backend ──────────────────────────────────────────────────────────────
 try:
     from docx import Document as DocxDocument
     DOCX_AVAILABLE = True
@@ -33,36 +40,55 @@ except ImportError:
 PROFILE_PATH = Path(__file__).resolve().parent.parent / "profile.json"
 
 TECH_SKILLS = {
-    "python","java","c","c++","c#","javascript","typescript","go","rust",
-    "kotlin","swift","r","matlab","scala","php","ruby","dart","bash",
-    "html","css","react","angular","vue","next.js","nuxt","svelte",
-    "django","flask","fastapi","spring","express","node.js","nodejs",
-    "bootstrap","tailwind","sass","graphql","rest","api",
-    "pandas","numpy","matplotlib","seaborn","scikit-learn","sklearn",
+    "python","java","c","c++","c#","javascript","typescript","go","golang","rust",
+    "kotlin","swift","r","matlab","scala","php","ruby","dart","bash","shell","perl",
+    "html","css","react","angular","vue","next.js","nextjs","nuxt","svelte",
+    "bootstrap","tailwind","sass","scss","redux","jquery","webpack","vite",
+    "django","flask","fastapi","spring","spring boot","express","node.js","nodejs",
+    "nestjs","rails","asp.net",".net","laravel",
+    "rest","restful","graphql","grpc","websocket","soap","api","jwt","oauth",
+    "pandas","numpy","matplotlib","seaborn","scikit-learn","sklearn","scipy",
     "tensorflow","pytorch","keras","opencv","nltk","spacy","huggingface",
-    "transformers","langchain","llm","machine learning","deep learning",
-    "data science","nlp","computer vision","reinforcement learning",
-    "xgboost","lightgbm","catboost",
-    "mysql","postgresql","sqlite","mongodb","redis","firebase",
-    "cassandra","elasticsearch","dynamodb",
-    "aws","gcp","azure","docker","kubernetes","terraform","ansible",
-    "jenkins","github actions","ci/cd","linux","git","github",
-    "android","ios","flutter","react native",
-    "blockchain","web3","solidity","arduino","raspberry pi",
-    "selenium","playwright","beautifulsoup","scrapy",
-    "excel","tableau","power bi","figma","shap","smote","gradio",
-    "statsmodels","plotly","scipy","augmented dickey-fuller","adf",
-    "ols","econometrics","imbalanced-learn","colab","jupyter","streamlit",
-    "data analysis","data visualisation","data visualization",
-    "business intelligence","bi","dashboard","report writing",
-    "research","survey design","literature review","data collection",
-    "microsoft excel","google sheets","canva","ms office",
+    "transformers","langchain","llm","llms","rag","openai","anthropic","claude",
+    "machine learning","deep learning","data science","nlp","computer vision",
+    "reinforcement learning","generative ai","genai","ml","ai",
+    "xgboost","lightgbm","catboost","random forest","logistic regression",
+    "linear regression","decision tree","svm","knn","k-means","clustering",
+    "classification","regression","time series","forecasting","arima",
+    "neural network","cnn","rnn","lstm","gru","transformer","bert","gpt",
+    "attention","embedding","feature engineering","hyperparameter tuning",
+    "cross-validation","grid search","random search","auc","roc","f1","precision","recall",
+    "mysql","postgresql","postgres","sqlite","mongodb","redis","firebase",
+    "cassandra","elasticsearch","dynamodb","sql","nosql","oracle","mariadb","supabase",
+    "aws","gcp","azure","heroku","vercel","netlify","render","railway",
+    "docker","kubernetes","k8s","terraform","ansible","puppet","chef",
+    "jenkins","github actions","gitlab ci","circleci","ci/cd",
+    "linux","ubuntu","unix","git","github","gitlab","bitbucket",
+    "android","ios","flutter","react native","xamarin","ionic",
+    "blockchain","web3","solidity","arduino","raspberry pi","embedded","iot","vlsi",
+    "selenium","playwright","cypress","beautifulsoup","scrapy","requests","puppeteer",
+    "excel","tableau","power bi","powerbi","figma","canva","ms office",
+    "shap","smote","gradio","streamlit","jupyter","colab","google colab",
+    "statsmodels","plotly","augmented dickey-fuller","adf","ols","econometrics",
+    "imbalanced-learn","dash","bokeh","altair","vega","d3.js","d3",
+    "airflow","dbt","spark","pyspark","hadoop","hive","kafka","rabbitmq",
+    "mlflow","weights & biases","wandb","tensorboard","optuna","ray",
+    "pytest","unittest","junit","jest","mocha","jasmine",
+    "postman","insomnia","swagger","openapi",
+    "data analysis","data visualisation","data visualization","data engineering",
+    "business intelligence","bi","dashboard","reporting","research",
+    "survey design","literature review","data collection","quantitative research",
+    "microsoft excel","google sheets","microsoft word","google docs",
+    "a/b testing","hypothesis testing","statistical analysis","anova",
+    "customer segmentation","cohort analysis","funnel analysis",
+    "predictive modeling","propensity modeling","churn prediction",
 }
 
 SOFT_SKILLS = {
-    "communication","leadership","teamwork","problem solving",
+    "communication","leadership","teamwork","problem solving","problem-solving",
     "time management","critical thinking","collaboration","creativity",
-    "adaptability","presentation",
+    "adaptability","presentation","analytical thinking","decision making",
+    "project management","agile","scrum","kanban",
 }
 
 EDUCATION_KEYWORDS = [
@@ -73,7 +99,7 @@ EDUCATION_KEYWORDS = [
 ]
 
 
-# ── Text extraction ───────────────────────────────────────────────────────────
+# ── Text extraction ──────────────────────────────────────────────────────────
 
 def extract_text_from_pdf(path: str) -> str:
     if PDF_BACKEND == "pdfplumber":
@@ -101,7 +127,6 @@ def extract_text_from_docx(path: str) -> str:
     for para in doc.paragraphs:
         if para.text.strip():
             parts.append(para.text)
-    # Also extract from tables (skills tables, education tables)
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
@@ -111,7 +136,6 @@ def extract_text_from_docx(path: str) -> str:
 
 
 def extract_text_from_doc(path: str) -> str:
-    """Try to extract text from old .doc format using antiword or textract."""
     try:
         import subprocess
         result = subprocess.run(
@@ -121,7 +145,6 @@ def extract_text_from_doc(path: str) -> str:
             return result.stdout
     except Exception:
         pass
-    # Fallback: try python-docx anyway (sometimes works)
     try:
         return extract_text_from_docx(path)
     except Exception:
@@ -130,50 +153,34 @@ def extract_text_from_doc(path: str) -> str:
 
 
 def extract_text(file_path: str) -> str:
-    """
-    Main text extractor — routes to correct backend based on file extension.
-    Supports: .pdf, .docx, .doc
-    """
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
-
     ext = path.suffix.lower()
-
     if ext == ".pdf":
         text = extract_text_from_pdf(file_path)
         if not text.strip():
-            raise ValueError(
-                "Could not extract text from PDF. "
-                "If it's a scanned image PDF, please export as DOCX or use a text-based PDF."
-            )
+            raise ValueError("Could not extract text from PDF (scanned image?).")
         return text
-
     elif ext == ".docx":
         text = extract_text_from_docx(file_path)
         if not text.strip():
-            raise ValueError("Could not extract text from DOCX file.")
+            raise ValueError("Could not extract text from DOCX.")
         return text
-
     elif ext == ".doc":
         text = extract_text_from_doc(file_path)
         if not text.strip():
-            raise ValueError("Could not extract text from DOC file.")
+            raise ValueError("Could not extract text from DOC.")
         return text
-
     else:
-        raise ValueError(
-            f"Unsupported file type: {ext}. "
-            "Please upload a PDF, DOCX, or DOC file."
-        )
+        raise ValueError(f"Unsupported file type: {ext}")
 
 
-# Keep backward compat — old code calls extract_text_from_pdf directly
 def extract_text_from_pdf_compat(pdf_path: str) -> str:
     return extract_text(pdf_path)
 
 
-# ── Extractors ────────────────────────────────────────────────────────────────
+# ── Personal info extractors ─────────────────────────────────────────────────
 
 def extract_college(text: str) -> Optional[str]:
     lines = text.splitlines()
@@ -218,40 +225,6 @@ def extract_current_course(text: str) -> Optional[str]:
     return None
 
 
-def detect_domain(text: str, skills: list) -> str:
-    """Detect user primary domain from resume text and skills."""
-    lower = text.lower()
-    skill_set = {s.lower() for s in skills}
-
-    scores = {
-        "aiml": 0, "datascience": 0, "webdev": 0,
-        "devops": 0, "research": 0, "entc": 0,
-    }
-
-    scores["aiml"]        += len(skill_set & {"machine learning","deep learning","tensorflow","pytorch","keras","xgboost","nlp","computer vision","huggingface","scikit-learn","sklearn","llm","langchain","transformers"}) * 2
-    scores["datascience"] += len(skill_set & {"pandas","numpy","data analysis","data science","tableau","power bi","statistics","econometrics","statsmodels","scipy","r","excel","data visualization"}) * 2
-    scores["webdev"]      += len(skill_set & {"react","angular","vue","node.js","nodejs","express","django","flask","fastapi","html","css","javascript","typescript","graphql","rest","api"}) * 2
-    scores["devops"]      += len(skill_set & {"docker","kubernetes","aws","gcp","azure","terraform","ansible","jenkins","linux","bash","ci/cd","github actions"}) * 2
-    scores["research"]    += len(skill_set & {"research","econometrics","statsmodels","ols","adf","scipy","survey design","literature review","data collection"}) * 2
-    scores["entc"]        += len(skill_set & {"arduino","raspberry pi","embedded","verilog","digital electronics","matlab","microcontroller","iot","pcb"}) * 2
-
-    if any(k in lower for k in ["artificial intelligence","machine learning","deep learning","ai/ml","ai & ml","aiml"]):
-        scores["aiml"] += 3
-    if any(k in lower for k in ["data science","data analyst","business intelligence","analytics"]):
-        scores["datascience"] += 3
-    if any(k in lower for k in ["web development","full stack","fullstack","frontend","backend","software engineer"]):
-        scores["webdev"] += 3
-    if any(k in lower for k in ["devops","cloud","infrastructure","devsecops","site reliability"]):
-        scores["devops"] += 3
-    if any(k in lower for k in ["research","econometrics","quantitative","publication","paper","rbi","isro"]):
-        scores["research"] += 3
-    if any(k in lower for k in ["electronics","telecommunication","entc","embedded","vlsi","iot","circuit"]):
-        scores["entc"] += 3
-
-    best = max(scores, key=scores.get)
-    return best if scores[best] > 0 else "datascience"
-
-
 def extract_name(text: str) -> str:
     for line in text.splitlines():
         line = line.strip()
@@ -292,7 +265,30 @@ def extract_links(text: str) -> dict:
     li = re.search(r"linkedin\.com/in/[\w\-]+", text, re.IGNORECASE)
     if li:
         links["linkedin"] = "https://" + li.group(0).rstrip("/")
+    # Portfolio (personal domain)
+    portfolio_patterns = [
+        r"https?://[\w\-]+\.(?:github\.io|vercel\.app|netlify\.app|pages\.dev)(?:/[\w\-/]*)?",
+    ]
+    for pat in portfolio_patterns:
+        m = re.search(pat, text, re.IGNORECASE)
+        if m:
+            url = m.group(0).rstrip("/").strip()
+            if "linkedin" not in url.lower() and "github.com" not in url.lower():
+                links["portfolio"] = url
+                break
     return links
+
+
+# ── Skill inference (v2 KEY FEATURE) ─────────────────────────────────────────
+
+def _find_skills_in_text(text: str) -> set:
+    """Find every known tech skill in arbitrary text. Returns set of lowercase skill names."""
+    lower = text.lower()
+    found = set()
+    for skill in TECH_SKILLS:
+        if re.search(r"\b" + re.escape(skill) + r"\b", lower):
+            found.add(skill)
+    return found
 
 
 def extract_skills(text: str) -> dict:
@@ -319,6 +315,30 @@ def _find_section(text: str, start_keywords: list, stop_keywords: list) -> list:
             result.append(s)
     return result
 
+
+def _extract_section_blocks(text: str, start_keywords: list, stop_keywords: list) -> list:
+    """Groups consecutive lines into blocks; each block likely = one project/job/cert."""
+    lines = _find_section(text, start_keywords, stop_keywords)
+    blocks, current = [], []
+    for line in lines:
+        is_new_block = (
+            len(current) > 0
+            and len(line) < 80
+            and len(line.split()) <= 10
+            and re.match(r"^[A-Z][A-Za-z]", line)
+            and not line.startswith(("•", "-", "*", "○", "▪"))
+        )
+        if is_new_block:
+            blocks.append(current)
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        blocks.append(current)
+    return blocks
+
+
+# ── Structured extractors with skill inference ──────────────────────────────
 
 def extract_education(text: str) -> list:
     edu_lines = _find_section(
@@ -360,10 +380,8 @@ def extract_education(text: str) -> list:
 
 def extract_year_of_study(text: str) -> Optional[int]:
     YEAR_MAP = {
-        "1st":1,"first":1,"1":1,
-        "2nd":2,"second":2,"2":2,
-        "3rd":3,"third":3,"3":3,
-        "4th":4,"fourth":4,"4":4,
+        "1st":1,"first":1,"1":1, "2nd":2,"second":2,"2":2,
+        "3rd":3,"third":3,"3":3, "4th":4,"fourth":4,"4":4,
     }
     lower = text.lower()
     patterns = [
@@ -377,12 +395,11 @@ def extract_year_of_study(text: str) -> Optional[int]:
             result = YEAR_MAP.get(m.group(1).lower())
             if result:
                 return result
-
     range_match = re.search(r"(20\d{2})\s*[\u2013\-–]+\s*(20\d{2})", text)
     if range_match:
-        start_year   = int(range_match.group(1))
+        start_year = int(range_match.group(1))
         current_year = datetime.datetime.now().year
-        years_done   = current_year - start_year
+        years_done = current_year - start_year
         return min(max(years_done, 1), 4)
     return None
 
@@ -396,79 +413,225 @@ def extract_cgpa(text: str) -> Optional[float]:
 
 
 def extract_projects(text: str) -> list:
-    lines = _find_section(
+    """v2: Returns structured project dicts with inferred skills."""
+    blocks = _extract_section_blocks(
         text,
         ["project","projects","academic project","key project"],
         ["education","academic","experience","skill","certif","award","extra","activit","volunteer","interest"],
     )
     result = []
-    for l in lines:
-        if not l or len(l) < 8:
+    for block in blocks:
+        if not block:
             continue
-        if re.search(r"\(cid:|^[·•\-]\s*$", l):
+        title = block[0][:120] if block[0] else ""
+        description = " ".join(block[1:])[:800] if len(block) > 1 else ""
+        full_text = title + " " + description
+        if len(full_text.strip()) < 10:
             continue
-        result.append(l[:200])
+        inferred = sorted(_find_skills_in_text(full_text))
+        result.append({
+            "title":           title.strip(),
+            "description":     description.strip(),
+            "inferred_skills": inferred,
+        })
     return result[:8]
 
 
 def extract_experience(text: str) -> list:
-    lines = _find_section(
+    """v2: Returns structured experience dicts with inferred skills."""
+    blocks = _extract_section_blocks(
         text,
-        ["experience","internship","work history"],
+        ["experience","internship","internships","work history","work experience","professional experience"],
         ["education","project","skill","certif","award","extra","activit","volunteer","interest"],
     )
-    return [l[:250] for l in lines if len(l) > 5][:10]
+    result = []
+    for block in blocks:
+        if not block:
+            continue
+        header = block[0]
+        description = " ".join(block[1:])[:800] if len(block) > 1 else ""
+
+        role = company = duration = ""
+        sep = re.split(r"\s*[\|\–\-]\s+|\s+at\s+|\s*,\s+", header, maxsplit=3)
+        if len(sep) >= 2:
+            role = sep[0].strip()
+            company = sep[1].strip()
+            if len(sep) >= 3:
+                duration = sep[2].strip()
+        else:
+            role = header.strip()
+
+        full_text = header + " " + description
+        inferred = sorted(_find_skills_in_text(full_text))
+        if len(full_text.strip()) < 10:
+            continue
+        result.append({
+            "role":            role[:100],
+            "company":         company[:100],
+            "duration":        duration[:50],
+            "description":     description.strip(),
+            "inferred_skills": inferred,
+        })
+    return result[:6]
 
 
 def extract_certifications(text: str) -> list:
+    """v2: Returns structured cert dicts with inferred skills."""
     lines = _find_section(
         text,
         ["certif","course","training","achievement","award"],
         ["education","experience","project","skill","extra","activit","volunteer","interest"],
     )
-    return [l[:200] for l in lines if len(l) > 5][:10]
+    result = []
+    for line in lines:
+        if len(line) < 5:
+            continue
+        sep = re.split(r"\s*[\|\–\-]\s+|\s+by\s+|\s+from\s+", line, maxsplit=1)
+        name = sep[0].strip()
+        issuer = sep[1].strip() if len(sep) > 1 else ""
+        inferred = sorted(_find_skills_in_text(line))
+        result.append({
+            "name":            name[:150],
+            "issuer":          issuer[:80],
+            "inferred_skills": inferred,
+        })
+    return result[:10]
 
 
-# ── Main parse function ───────────────────────────────────────────────────────
+# ── Domain detection ─────────────────────────────────────────────────────────
+
+def detect_domain(text: str, skills: list) -> str:
+    lower = text.lower()
+    skill_set = {s.lower() for s in skills}
+    scores = {"aiml": 0, "datascience": 0, "webdev": 0, "devops": 0, "research": 0, "entc": 0}
+
+    scores["aiml"]        += len(skill_set & {"machine learning","deep learning","tensorflow","pytorch","keras","xgboost","nlp","computer vision","huggingface","scikit-learn","sklearn","llm","langchain","transformers"}) * 2
+    scores["datascience"] += len(skill_set & {"pandas","numpy","data analysis","data science","tableau","power bi","statistics","econometrics","statsmodels","scipy","r","excel","data visualization","data visualisation"}) * 2
+    scores["webdev"]      += len(skill_set & {"react","angular","vue","node.js","nodejs","express","django","flask","fastapi","html","css","javascript","typescript","graphql","rest","api"}) * 2
+    scores["devops"]      += len(skill_set & {"docker","kubernetes","aws","gcp","azure","terraform","ansible","jenkins","linux","bash","ci/cd","github actions"}) * 2
+    scores["research"]    += len(skill_set & {"research","econometrics","statsmodels","ols","adf","scipy","survey design","literature review","data collection"}) * 2
+    scores["entc"]        += len(skill_set & {"arduino","raspberry pi","embedded","verilog","matlab","iot","vlsi"}) * 2
+
+    if any(k in lower for k in ["artificial intelligence","machine learning","deep learning","ai/ml","ai & ml","aiml"]):
+        scores["aiml"] += 3
+    if any(k in lower for k in ["data science","data analyst","business intelligence","analytics"]):
+        scores["datascience"] += 3
+    if any(k in lower for k in ["web development","full stack","fullstack","frontend","backend","software engineer"]):
+        scores["webdev"] += 3
+    if any(k in lower for k in ["devops","cloud","infrastructure","devsecops","site reliability"]):
+        scores["devops"] += 3
+    if any(k in lower for k in ["research","econometrics","quantitative","publication","paper","rbi","isro"]):
+        scores["research"] += 3
+    if any(k in lower for k in ["electronics","telecommunication","entc","embedded","vlsi","iot","circuit"]):
+        scores["entc"] += 3
+
+    best = max(scores, key=scores.get)
+    return best if scores[best] > 0 else "datascience"
+
+
+# ── Weighted skill aggregation (v2 KEY FEATURE) ─────────────────────────────
+
+def build_weighted_skills(explicit_skills: list, projects: list,
+                          experience: list, certifications: list) -> dict:
+    """
+    Aggregates skills from all sources with confidence weights:
+      - Explicit skill in Skills section       → 1.00
+      - Skill inferred from experience bullets → 0.90  (real usage)
+      - Skill inferred from project            → 0.80  (self-directed)
+      - Skill inferred from certification      → 0.70  (learned, maybe not used)
+    Returns: {weighted, all_skills, sources}
+    """
+    weighted: dict = {}
+    sources: dict = {}
+
+    def add(skill: str, weight: float, source: str):
+        s = skill.lower().strip()
+        if not s:
+            return
+        if s not in weighted or weight > weighted[s]:
+            weighted[s] = weight
+        sources.setdefault(s, []).append(source)
+
+    for s in explicit_skills:
+        add(s, 1.0, "explicit")
+    for exp in experience or []:
+        label = f"experience:{exp.get('company','') or exp.get('role','') or 'work'}"[:60]
+        for s in exp.get("inferred_skills", []):
+            add(s, 0.90, label)
+    for proj in projects or []:
+        label = f"project:{proj.get('title', '')[:40]}"
+        for s in proj.get("inferred_skills", []):
+            add(s, 0.80, label)
+    for cert in certifications or []:
+        label = f"cert:{cert.get('name', '')[:40]}"
+        for s in cert.get("inferred_skills", []):
+            add(s, 0.70, label)
+
+    return {
+        "weighted":   weighted,
+        "all_skills": sorted(weighted.keys()),
+        "sources":    sources,
+    }
+
+
+# ── Main parse function ──────────────────────────────────────────────────────
 
 def parse_resume(file_path: str) -> dict:
-    """
-    Full pipeline: PDF / DOCX / DOC → structured profile dict.
-    """
     print(f"[JobSearchy] Parsing resume: {file_path}")
     raw_text = extract_text(file_path)
 
-    skills    = extract_skills(raw_text)
+    name = extract_name(raw_text)
+    email = extract_email(raw_text)
+    phone = extract_phone(raw_text)
+    links = extract_links(raw_text)
+
     education = extract_education(raw_text)
-    projects  = extract_projects(raw_text)
+    college = extract_college(raw_text)
+    current_course = extract_current_course(raw_text)
+    year = extract_year_of_study(raw_text)
+    cgpa = extract_cgpa(raw_text)
+
+    explicit = extract_skills(raw_text)
+    explicit_all = explicit["technical"] + explicit["soft"]
+
+    projects = extract_projects(raw_text)
     experience = extract_experience(raw_text)
+    certifications = extract_certifications(raw_text)
 
-    # Flatten skills to a single list for the scorer
-    all_skills_flat = skills["technical"] + skills["soft"]
+    weighted = build_weighted_skills(explicit_all, projects, experience, certifications)
+    all_skills_flat = weighted["all_skills"]
 
-    profile = {
-        "source_file":    str(Path(file_path).resolve()),
-        "name":           extract_name(raw_text),
-        "email":          extract_email(raw_text),
-        "phone":          extract_phone(raw_text),
-        "links":          extract_links(raw_text),
-        "skills":         all_skills_flat,          # flat list — scorer expects this
-        "education":      education,
-        "college":        extract_college(raw_text),
-        "current_course": extract_current_course(raw_text),
-        "domain":         detect_domain(raw_text, skills.get("technical", [])),
-        "year_of_study":  extract_year_of_study(raw_text),
-        "cgpa":           extract_cgpa(raw_text),
-        "projects":       projects,
-        "experience":     experience,
-        "certifications": extract_certifications(raw_text),
+    domain = detect_domain(raw_text, all_skills_flat)
+
+    return {
+        "source_file":     str(Path(file_path).resolve()),
+        "parsed_at":       datetime.datetime.utcnow().isoformat() + "Z",
+        "name":            name,
+        "email":           email,
+        "phone":           phone,
+        "links":           links,
+        "skills":          all_skills_flat,
+        "skills_weighted": weighted["weighted"],
+        "skills_sources":  weighted["sources"],
+        "skills_explicit": sorted(explicit_all),
+        "education":       education,
+        "college":         college,
+        "current_course":  current_course,
+        "domain":          domain,
+        "year_of_study":   year,
+        "cgpa":            cgpa,
+        "projects":        projects,
+        "experience":      experience,
+        "certifications":  certifications,
         "summary": {
             "all_skills":     all_skills_flat,
+            "num_explicit":   len(explicit_all),
+            "num_inferred":   max(0, len(all_skills_flat) - len(explicit_all)),
             "has_experience": len(experience) > 0,
             "num_projects":   len(projects),
+            "num_certs":      len(certifications),
         },
     }
-    return profile
 
 
 def save_profile(profile: dict, output_path: Optional[str] = None) -> str:
@@ -493,9 +656,18 @@ if __name__ == "__main__":
         print("Usage: python resume_parser.py <resume.pdf|resume.docx> [output.json]")
         sys.exit(1)
     profile = parse_resume(sys.argv[1])
-    saved   = save_profile(profile, sys.argv[2] if len(sys.argv) > 2 else None)
-    print(f"\n✓ Name:   {profile['name']}")
-    print(f"✓ Email:  {profile['email']}")
-    print(f"✓ Skills ({len(profile['skills'])}): {profile['skills'][:8]}")
-    print(f"✓ Year:   {profile['year_of_study']}")
-    print(f"✓ Saved → {saved}")
+    saved = save_profile(profile, sys.argv[2] if len(sys.argv) > 2 else None)
+    print(f"\n✓ Name:     {profile['name']}")
+    print(f"✓ Email:    {profile['email']}")
+    print(f"✓ College:  {profile['college']}")
+    print(f"✓ Course:   {profile['current_course']}")
+    print(f"✓ Year:     {profile['year_of_study']}")
+    print(f"✓ CGPA:     {profile['cgpa']}")
+    print(f"✓ Skills:   {len(profile['skills'])} total "
+          f"({profile['summary']['num_explicit']} explicit, "
+          f"{profile['summary']['num_inferred']} inferred)")
+    print(f"✓ Projects: {profile['summary']['num_projects']}")
+    print(f"✓ Exp:      {len(profile['experience'])}")
+    print(f"✓ Certs:    {profile['summary']['num_certs']}")
+    print(f"✓ Domain:   {profile['domain']}")
+    print(f"✓ Saved →   {saved}")
