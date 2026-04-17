@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import logging
 import threading
 import sqlite3
 from flask import Flask, request, jsonify, send_from_directory
@@ -18,6 +19,10 @@ from database.db import (
 )
 from scrapers.internshala_scraper import scrape as scrape_internshala
 from scrapers.company_scraper import scrape_linkedin
+
+logger = logging.getLogger("jobsearchy")
+logging.basicConfig(level=logging.INFO)
+
 
 def _safe_import(fn_name, module):
     try:
@@ -39,11 +44,6 @@ scrape_govt        = _safe_import('scrape_govt_jobs',   'scrapers.govt_scraper')
 from notifiers.email_notifier import send_daily_digest
 
 app = Flask(__name__, static_folder="static", template_folder="static")
-@app.after_request
-def allow_iframe(response):
-    response.headers['X-Frame-Options'] = 'ALLOWALL'
-    response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://rushi9234.github.io https://*.github.io;"
-    return response
 
 UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {"pdf", "docx", "doc"}
@@ -52,6 +52,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 init_db()
 
 pipeline_status = {"running": False, "message": "Idle", "progress": 0}
+
+# Tracks background rescoring so the frontend can poll if it wants
+rescore_status = {"running": False, "done": 0, "total": 0, "message": "Idle"}
 
 
 def allowed_file(filename):
@@ -70,41 +73,86 @@ def flatten_skills(skills):
 
 
 def _rescore_all_jobs(profile: dict):
-    """Rescore every job in DB against a new profile. Called after resume upload."""
+    """
+    Rescore every job in DB against a new profile.
+
+    NOTE: This is now called in a BACKGROUND THREAD (not inline) so it can't
+    kill the gunicorn worker on slow/low-memory free tiers like Render.
+
+    We also process jobs in batches of 500 to keep memory use bounded even
+    when the DB grows to tens of thousands of rows.
+    """
+    global rescore_status
+    BATCH_SIZE = 500
+
     try:
         conn = sqlite3.connect("searchy.db")
         cur  = conn.cursor()
-        cur.execute("SELECT id, title, company, description, tags FROM jobs")
-        rows = cur.fetchall()
-        if not rows:
+        cur.execute("SELECT COUNT(*) FROM jobs")
+        total = cur.fetchone()[0] or 0
+
+        rescore_status = {"running": True, "done": 0, "total": total, "message": "Starting rescore..."}
+
+        if total == 0:
+            rescore_status = {"running": False, "done": 0, "total": 0, "message": "No jobs to rescore"}
             conn.close()
             return 0
-        job_list = []
-        for row in rows:
-            jid, title, company, desc, tags = row
-            try:
-                tag_list = json.loads(tags) if tags else []
-            except:
-                tag_list = []
-            job_list.append({
-                "id":          jid,
-                "title":       title   or "",
-                "company":     company or "",
-                "description": desc    or "",
-                "tags":        tag_list,
-            })
-        scored = batch_score(profile, job_list)
-        for job in scored:
+
+        offset = 0
+        rescored_count = 0
+        while offset < total:
             cur.execute(
-                "UPDATE jobs SET match_score=? WHERE id=?",
-                (job.get("match_score", 0), job["id"])
+                "SELECT id, title, company, description, tags FROM jobs LIMIT ? OFFSET ?",
+                (BATCH_SIZE, offset),
             )
-        conn.commit()
+            rows = cur.fetchall()
+            if not rows:
+                break
+
+            job_list = []
+            for jid, title, company, desc, tags in rows:
+                try:
+                    tag_list = json.loads(tags) if tags else []
+                except Exception:
+                    tag_list = []
+                job_list.append({
+                    "id":          jid,
+                    "title":       title   or "",
+                    "company":     company or "",
+                    "description": desc    or "",
+                    "tags":        tag_list,
+                })
+
+            scored = batch_score(profile, job_list)
+            for job in scored:
+                cur.execute(
+                    "UPDATE jobs SET match_score=? WHERE id=?",
+                    (job.get("match_score", 0), job["id"]),
+                )
+            conn.commit()
+
+            rescored_count += len(scored)
+            offset += BATCH_SIZE
+            rescore_status = {
+                "running": True,
+                "done": rescored_count,
+                "total": total,
+                "message": f"Rescored {rescored_count}/{total}...",
+            }
+
         conn.close()
-        print(f"[Upload] Rescored {len(scored)} jobs for {profile.get('name')}")
-        return len(scored)
+        print(f"[Upload] Rescored {rescored_count} jobs for {profile.get('name')}")
+        rescore_status = {
+            "running": False,
+            "done": rescored_count,
+            "total": total,
+            "message": f"Done — rescored {rescored_count} jobs.",
+        }
+        return rescored_count
+
     except Exception as e:
         print(f"[Upload] Rescore error: {e}")
+        rescore_status = {"running": False, "done": 0, "total": 0, "message": f"Error: {e}"}
         return 0
 
 
@@ -117,6 +165,11 @@ def index():
 # ── Upload resume ─────────────────────────────────────────────────────────────
 @app.route("/api/upload-resume", methods=["POST"])
 def upload_resume():
+    """
+    Parses the resume and saves profile.json synchronously (fast — under 5s).
+    Rescoring is kicked off in a BACKGROUND THREAD so we return immediately
+    and don't get killed by gunicorn's 30s timeout or Render's 512MB RAM cap.
+    """
     if "resume" not in request.files:
         return jsonify({"error": "No file provided"}), 400
     file = request.files["resume"]
@@ -140,16 +193,30 @@ def upload_resume():
         with open("profile.json", "w") as f:
             json.dump(profile, f, indent=2)
 
-        # ── Auto-rescore all existing DB jobs against this new profile ──
-        rescored = _rescore_all_jobs(profile)
+        # ── Kick off rescoring in the BACKGROUND (don't block the response) ──
+        # This was the cause of the Render OOM + WORKER TIMEOUT crashes.
+        if not rescore_status.get("running"):
+            threading.Thread(
+                target=_rescore_all_jobs,
+                args=(profile,),
+                daemon=True,
+            ).start()
 
         return jsonify({
-            "success":  True,
-            "profile":  profile,
-            "rescored": rescored,
+            "success":          True,
+            "profile":          profile,
+            "rescoring_started": True,
+            "message":          "Resume parsed. Rescoring old jobs in background.",
         })
     except Exception as e:
+        logger.exception("[upload-resume] failed")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/rescore-status", methods=["GET"])
+def get_rescore_status():
+    """Frontend can poll this if it wants to show a 'rescoring X/Y' indicator."""
+    return jsonify(rescore_status)
 
 
 # ── Get profile ───────────────────────────────────────────────────────────────
@@ -407,9 +474,9 @@ def send_digest():
         if result:
             return jsonify({"success": True, "message": f"Email sent to {to_email}!"})
         else:
-            return jsonify({"error": "Email failed — check RESEND_API_KEY in Render environment variables."}), 500
+            return jsonify({"error": "Email failed — check MAIL_FROM/MAIL_PASS in Render environment variables."}), 500
     except Exception as e:
-        logger.error("[send-digest] %s", e)
+        logger.exception("[send-digest] failed")
         return jsonify({"error": str(e)}), 500
 
 
