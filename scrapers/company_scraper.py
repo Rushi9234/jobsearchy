@@ -59,6 +59,7 @@ def scrape_linkedin(
     location: str = "India",
     job_type: str = "internship",
     pages: int = 2,
+    days: Optional[int] = 7,
 ) -> list[dict]:
     """
     Scrape LinkedIn public job listings (no login required).
@@ -76,6 +77,9 @@ def scrape_linkedin(
                 "f_JT":     "I" if job_type == "internship" else "",
                 "start":    start,
             }
+            if days:
+                # LinkedIn f_TPR takes time posted in seconds (e.g. 7 days = 604800s)
+                params["f_TPR"] = f"r{int(days) * 86400}"
             resp = _safe_get(session, BASE, params=params)
             if not resp:
                 break
@@ -246,6 +250,7 @@ def scrape_all(
     enable_linkedin:  bool = True,
     enable_unstop:    bool = True,
     enable_wellfound: bool = True,
+    days:             Optional[int] = 7,
 ) -> list[dict]:
     """
     Run all enabled scrapers and merge results (deduplicated by job_id+source).
@@ -261,7 +266,7 @@ def scrape_all(
             combined.setdefault(key, j)
 
     if enable_linkedin:
-        _merge(scrape_linkedin(keywords))
+        _merge(scrape_linkedin(keywords, days=days))
     if enable_unstop:
         _merge(scrape_unstop(keywords))
     if enable_wellfound:

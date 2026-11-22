@@ -6,7 +6,7 @@ import threading
 import time
 import sqlite3
 import re
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 
@@ -448,7 +448,7 @@ def run_pipeline_thread(days=7):
 
         with ThreadPoolExecutor(max_workers=8) as executor:
             future_to_name = {
-                executor.submit(_run_scraper, name, fn, kw, jtype): name
+                executor.submit(_run_scraper, name, fn, kw, jtype, days): name
                 for name, fn, kw, jtype in scraper_configs
             }
             completed = 0
@@ -513,12 +513,15 @@ def run_pipeline_thread(days=7):
         print(traceback.format_exc())
 
 
-def _run_scraper(source_name, scraper_fn, keywords, default_job_type):
+def _run_scraper(source_name, scraper_fn, keywords, default_job_type, days=7):
     try:
         try:
-            jobs = scraper_fn(keywords=keywords)
+            jobs = scraper_fn(keywords=keywords, days=days)
         except TypeError:
-            jobs = scraper_fn(keywords=keywords[:3] if keywords else [])
+            try:
+                jobs = scraper_fn(keywords=keywords)
+            except TypeError:
+                jobs = scraper_fn(keywords=keywords[:3] if keywords else [])
         for j in jobs:
             j.setdefault("job_type", default_job_type)
         return jobs
@@ -577,6 +580,22 @@ def is_listing_expired(j: dict) -> bool:
     return False
 
 
+def _calc_days_ago(scraped_at_str: str) -> int:
+    if not scraped_at_str:
+        return 0
+    try:
+        s = str(scraped_at_str).replace("Z", "+00:00")
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo:
+            now = datetime.now(timezone.utc)
+        else:
+            now = datetime.now()
+        diff = now - dt
+        return max(0, diff.days)
+    except Exception:
+        return 0
+
+
 def classify_job(j: dict) -> str:
     """
     Deterministically classifies a listing into 'hackathon', 'govt', 'internship', or 'job'.
@@ -601,15 +620,30 @@ def classify_job(j: dict) -> str:
         "pm internship scheme", "pminternship", "pmis", "ministry of",
         "niti aayog", "isro", "drdo", "aicte", "csir", "nabard", "nic.in",
         "meity", "rbi", "sebi", "bhel", "ongc", "iocl", "ntpc", "sail", "hal",
-        "national career service", "upsc", "ssc", "government of india", "govt of"
+        "national career service", "upsc", "ssc", "government of india", "govt of",
+        "iit kanpur", "iit roorkee", "iit bombay", "iit delhi", "iit madras", "iit kharagpur",
+        "dst-inspire", "icar", "nielit", "dst", "c-dac"
     ]
-    is_govt_source = any(s in src for s in ["pmis", "niti_aayog", "mygov", "aicte"]) or \
-                     any(d in url for d in ["pminternship.mca.gov.in", "aicte-india.org", "niti.gov.in", "gov.in", "nic.in"])
+    is_govt_source = any(s in src for s in ["pmis", "niti_aayog", "mygov", "aicte", "govt_portal", "linkedin_govt"]) or \
+                     any(d in url for d in [
+                         "pminternship.mca.gov.in", "aicte-india.org", "niti.gov.in", "gov.in",
+                         "nic.in", "isro.gov.in", "drdo.gov.in", "csir.res.in", "surge.iitk.ac.in",
+                         "spark.iitr.ac.in", "sebi.gov.in", "rbi.org.in", "nabard.org", "nielit.gov.in", "icar.org.in"
+                     ])
     is_govt_company = any(k in company for k in govt_entities)
     is_govt_title = any(k in title for k in govt_entities)
-    is_private_co = any(p in company for p in ["pvt ltd", "private limited", "ltd.", "inc.", "llc", "technologies", "consultancy"])
+    private_signals = [
+        "pvt ltd", "pvt. ltd", "private limited", "ltd.", "llp", "inc.",
+        "technologies", "consultancy", "solutions", "wedding", "elevate labs",
+        "corporation private", "services pvt"
+    ]
+    is_private_co = any(p in company for p in private_signals)
+    is_official_override = any(g in company or g in title for g in [
+        "government of india", "ministry of", "isro", "drdo", "aicte",
+        "niti aayog", "pm internship", "pminternship", "iit kanpur", "iit roorkee"
+    ])
 
-    if (is_govt_source or is_govt_company or is_govt_title) and not is_private_co:
+    if (is_govt_source or is_govt_company or is_govt_title) and (not is_private_co or is_official_override):
         return "govt"
 
     # 3. INTERNSHIP vs FULL-TIME JOB
@@ -643,8 +677,12 @@ def get_jobs():
     source       = request.args.get("source",       "")
     search       = request.args.get("search",       "")
     hide_expired = request.args.get("hide_expired", "1") == "1"
+    days         = request.args.get("days",         None, type=int)
+    job_type     = request.args.get("job_type",     "")
 
-    jobs = get_all_jobs(limit=limit)
+    # Fetch with high limit so memory filtering doesn't prematurely drop matching items
+    fetch_limit = 3000 if (job_type or days or source or search) else limit
+    jobs = get_all_jobs(limit=fetch_limit)
 
     classified_jobs = []
     for j in jobs:
@@ -654,11 +692,21 @@ def get_jobs():
         j["is_expired"] = is_listing_expired(j)
         if hide_expired and j["is_expired"]:
             continue
+
+        # Calculate freshness
+        src = (j.get("source") or "").lower()
+        if "portal" in src or "static" in src or "pmis" in src:
+            j["days_ago"] = 0
+        else:
+            j["days_ago"] = _calc_days_ago(j.get("scraped_at", ""))
+
+        if days is not None and j["days_ago"] > days:
+            continue
+
         classified_jobs.append(j)
 
     jobs = classified_jobs
 
-    job_type = request.args.get("job_type", "")
     if job_type and job_type != "all":
         jobs = [j for j in jobs if j.get("job_type", "") == job_type]
 
@@ -672,8 +720,6 @@ def get_jobs():
                                 or s in (j.get("company", "") or "").lower()]
 
     # ── Coverage score (Rushi's idea) — computed on-the-fly ─────────────────
-    # If profile exists, compute what % of each job's required skills user has.
-    # Cheap enough to do for <500 jobs; for larger lists, only compute top N.
     try:
         if os.path.exists("profile.json"):
             with open("profile.json") as f:
@@ -683,7 +729,6 @@ def get_jobs():
                 or flatten_skills(profile.get("skills", []))
             )
             if profile_skills:
-                # Only compute for first 200 jobs for speed
                 for j in jobs[:200]:
                     cov = coverage_score(profile_skills, j)
                     j["coverage_pct"]   = cov["coverage_pct"]
@@ -693,10 +738,13 @@ def get_jobs():
     except Exception as e:
         logger.warning("[api/jobs] coverage computation failed: %s", e)
 
-    # Coverage filter — "show only jobs I can apply to with confidence"
+    # Coverage filter
     min_cov = request.args.get("min_coverage", 0, type=int)
     if min_cov > 0:
         jobs = [j for j in jobs if j.get("coverage_pct", 0) >= min_cov]
+
+    if limit and len(jobs) > limit:
+        jobs = jobs[:limit]
 
     return jsonify(jobs)
 
@@ -751,7 +799,27 @@ def send_digest():
     try:
         data            = request.get_json() or {}
         recipient_email = data.get("email", "").strip()
-        jobs            = get_top_jobs(limit=50)
+        days            = data.get("days", None)
+        jobs            = get_top_jobs(limit=100)
+
+        if days is not None:
+            cutoff = datetime.now() - timedelta(days=int(days))
+            fresh_jobs = []
+            for j in jobs:
+                src = (j.get("source") or "").lower()
+                if "portal" in src or "static" in src or "pmis" in src:
+                    fresh_jobs.append(j)
+                    continue
+                try:
+                    s = str(j.get("scraped_at", "")).replace("Z", "")
+                    dt = datetime.fromisoformat(s)
+                    if dt >= cutoff:
+                        fresh_jobs.append(j)
+                except Exception:
+                    fresh_jobs.append(j)
+            jobs = fresh_jobs[:50]
+        else:
+            jobs = jobs[:50]
 
         profile_data = {}
         if os.path.exists("profile.json"):
@@ -1133,7 +1201,8 @@ def _start_background_scheduler():
     t.start()
     logger.info("[AutoScheduler] In-app 4x daily automation thread initialized.")
 
-_start_background_scheduler()
+if os.getenv("ENABLE_SCHEDULER", "0") == "1" or __name__ == "__main__":
+    _start_background_scheduler()
 
 
 if __name__ == "__main__":

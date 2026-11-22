@@ -1,9 +1,21 @@
-# 🔍 JobSearcher — AI Job Hunting Agent
+# 🔍 JobSearchy — Autonomous AI Job Discovery Agent
 
-> **Every other platform is a job board. JobSearcher is a job hunting agent.**
-> Upload your resume once → scrapes 500+ jobs from 7 platforms → scores every job against your resume using AI → sends alerts automatically. You do zero work after signup.
+<p align="center">
+  <a href="https://github.com/Rushi9234/jobsearchy/actions/workflows/ci.yml">
+    <img src="https://github.com/Rushi9234/jobsearchy/actions/workflows/ci.yml/badge.svg" alt="CI Status" />
+  </a>
+  <img src="https://img.shields.io/badge/python-3.11+-3776AB.svg?logo=python&logoColor=white" alt="Python 3.11+" />
+  <a href="https://jobsearchy.onrender.com">
+    <img src="https://img.shields.io/badge/render-live%20app-46E3B7.svg?logo=render&logoColor=white" alt="Render Live" />
+  </a>
+  <img src="https://img.shields.io/badge/docker-ready-2496ED.svg?logo=docker&logoColor=white" alt="Docker Ready" />
+  <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License" />
+</p>
 
-**🌐 Live at: [jobsearchy.onrender.com](https://jobsearchy.onrender.com)**
+> **Most job boards make you search. JobSearchy searches for you.**  
+> Upload your resume once &rarr; scrapes verified jobs across 9 platforms &rarr; AI scores every job 0–100 with skill coverage against your resume &rarr; dispatches instant WhatsApp and HTML email digests.
+
+**🌐 Production Deployment:** [jobsearchy.onrender.com](https://jobsearchy.onrender.com)
 
 ---
 
@@ -11,301 +23,180 @@
 
 ---
 
-## 🎯 What It Does
+## 🎯 Key Capabilities
 
-| Step | What happens |
-|------|-------------|
-| 1 | Upload your resume (PDF / DOCX) |
-| 2 | System auto-extracts your name, skills, education, projects |
-| 3 | 7 scrapers run in parallel — Internshala, LinkedIn, Unstop, Devfolio, HackerEarth, Govt portals |
-| 4 | Every job is scored 0–100 against your resume using TF-IDF cosine similarity |
-| 5 | Results appear on your dashboard ranked by match score |
-| 6 | Pipeline repeats automatically 4× daily — 8AM, 12PM, 6PM, 11PM |
-| 7 | Top matches sent to your email and Telegram |
+- **⚡ Multi-Engine Scraping (9 Portals in Parallel):**
+  Scrapes active listings across Internshala, LinkedIn, Wellfound, Unstop, Devfolio, HackerEarth, Naukri, verified Government portals (AICTE, ISRO, DRDO, IITs, NITI Aayog), and the official Prime Minister Internship Scheme (PMIS).
+- **📅 Real-Time Search Range Slider & Days Filter:**
+  Adjust search window seamlessly (`Today`, `3d`, `7d`, `15d`, `30d`) from the drawer slider or top filter pills. Only listings within your requested range are displayed and emailed.
+- **🏛️ 100% Verified Government Opportunities:**
+  Strict validation ensures only official government bodies, national labs, IIT research programs (SURGE, SPARK), and ministry schemes (PMIS) appear in the Government category—zero private company leakage.
+- **🟢 Freshness Badges:**
+  Every listing shows a visual freshness indicator (`🟢 Today`, `🔵 2d ago`, `🟡 5d ago`) calculated dynamically.
+- **🎯 AI Matching & Skill Coverage Scoring (0–100):**
+  Hybrid TF-IDF semantic matching + skill coverage breakdown calculating exact match percentage, matched skills, and skill gaps for every position.
+- **🧭 Career GPS Matrix:**
+  AI-powered career path recommendation engine mapping your extracted profile to high-trajectory roles, readiness ratings, and personalized 7-day action plans.
+- **🤖 Joby AI Copilot:**
+  Built-in conversational career assistant ready to answer questions about specific postings, skills to learn, interview preparation, and application strategy.
+- **🎨 3 Designer Themes:**
+  Switch in 1 click between **Classic**, **Obsidian Dark**, and **Porcelain Light**.
+- **📨 Multi-Channel Alerts:**
+  Personalized HTML email digests (via Resend HTTPS REST API or Gmail SMTP) + WhatsApp deep link + Telegram alerts.
 
 ---
 
-## 📸 Screenshots
+## 📸 Product Walkthrough
 
-### Resume Upload
-
+### 1. Resume Upload & Instant Parsing
+Drop your resume (PDF, DOCX, DOC) — skills, projects, degrees, and candidate details are extracted automatically.
 ![Resume Upload](screenshots/resume_upload.png)
 
-*Drop your resume (PDF, DOCX, DOC) — skills are extracted automatically*
-
 ---
 
-### AI Resume Parsing
-
+### 2. Candidate Profile Calibration
+Over 25+ skills extracted with candidate headline, CGPA, and one-click "⚡ Demo Profile" fallback for instant testing.
 ![Resume Parsed](screenshots/resume_parsed.png)
 
-*28 skills extracted instantly. Shows degree, CGPA 7.43, Year 3, and Find My Jobs button*
-
 ---
 
-### Live Job Search with AI Score Rings
-
+### 3. Live Dashboard with Real-Time Filters & Arc Gauges
+Visual 0–100 match gauges, live progress indicator, freshness badges, and real-time category filtering (Internships, Full-time, Hackathons, Govt).
 ![All Jobs](screenshots/all_jobs.png)
 
-*Pipeline running in real time — all 7 scrapers report progress, jobs appear with 0–100 AI match score rings*
-
 ---
 
-### Skill Gap Analysis
-
+### 4. Domain-Aware Skill Gap Analysis
+Identifies high-frequency industry skills missing from your resume and provides direct learning links.
 ![Skill Gaps](screenshots/skill_gaps.png)
 
-*Domain-aware gap analysis for AI/ML track — shows missing high-demand skills (MLflow 82%, PyTorch 78%, HuggingFace 75%) with market frequency bars and direct YouTube learn links*
-
 ---
 
-### AI Skill Flashcards
-
+### 5. Interactive Skill Flashcards
+Interactive flashcards across 7 technical disciplines (Python, ML/AI, Web Dev, DevOps, Database, Stats) to review core concepts while pipeline runs.
 ![Flashcards](screenshots/flashcards.png)
 
-*40 flashcards across 7 categories (Python, ML & AI, Web Dev, Database, DevOps, Stats & Research) — auto-opens while pipeline runs, tap to flip*
-
 ---
 
-### Email Digest
-
+### 6. Personalized Email Digest
+Rich HTML email with top scoring opportunities, skill gap advisory, and direct 1-click apply links.
 ![Email Digest](screenshots/email_digest.png)
-
-*Personalised HTML email — subject line shows top score, stats summary (50 found, 63 top score, 42 above 50), job cards with Apply buttons*
-
----
-
-## 🚀 Features
-
-- **AI Resume Matching** — TF-IDF + cosine similarity scores every job against your actual skills
-- **7 Live Scrapers** — Internshala, LinkedIn, Unstop, Devfolio, HackerEarth, Govt portals running in parallel
-- **React Dashboard** — 8 tabs: All Jobs, Top Matches, Saved, Analytics, My Applications, Hackathons, Skill Gaps, Resume
-- **Arc Gauge Score Rings** — visual 0–100 match score on every job card
-- **Application Tracker** — track Applied / Interview / Offer / Rejected, saved to SQLite DB
-- **Skill Gap Analysis** — domain-aware gaps (AI/ML, Web Dev, DevOps, Research) with YouTube learn links
-- **AI Skill Flashcards** — 40 cards with full learning content across 7 categories
-- **Email Digest** — personalised HTML email with top job matches, Gmail SSL port 465
-- **Telegram Alerts** — real-time bot notifications for high-match jobs
-- **WhatsApp Share** — one-tap share of top 5 jobs via wa.me deep link
-- **Auto Scheduler** — runs 4× daily without any manual intervention
-- **GitHub CI/CD** — push to main → auto-deploys to Render
-
----
-
-## 🗂️ Project Structure
-
-```
-jobsearchy/
-│
-├── web_portal.py           ← Flask backend — 15+ API endpoints (MAIN FILE)
-├── main.py                 ← Standalone pipeline runner
-├── scheduler.py            ← 4× daily auto-runner (08:00, 12:00, 18:00, 23:00)
-├── requirements.txt
-├── Procfile                ← Render deployment config
-├── searcy.env.example      ← Credential template (safe to share)
-│
-├── static/
-│   └── index.html          ← Full React frontend (React 18 + Babel CDN)
-│
-├── database/
-│   └── db.py               ← SQLite layer — jobs, tracker, scrape logs
-│
-├── utils/
-│   ├── resume_parser.py    ← PDF/DOCX → profile.json (name, skills, education, projects)
-│   ├── matcher.py          ← TF-IDF + cosine scoring engine (0–100)
-│   └── filters.py          ← Job filtering — removes spam, keeps internships/hackathons
-│
-├── scrapers/
-│   ├── internshala_scraper.py   ← ~347 listings/run
-│   ├── company_scraper.py       ← LinkedIn ~257 listings/run
-│   ├── unstop_scraper.py        ← Hackathons — 30 listings/run
-│   ├── devfolio_scraper.py      ← Hackathons — 20 listings/run
-│   ├── hackerearth_scraper.py   ← Coding challenges
-│   ├── wellfound_scraper.py     ← Startup jobs
-│   └── naukri_scraper.py        ← Fresher jobs
-│
-└── notifiers/
-    ├── telegram_notifier.py     ← Real-time alerts
-    └── email_notifier.py        ← HTML digest — Gmail SSL port 465
-```
 
 ---
 
 ## ⚙️ How the Pipeline Works
 
 ```
-resume.pdf / .docx
-       │
-       ▼
-resume_parser.py  →  profile.json  (name, skills dict, education, projects, domain)
-       │
-       ▼
-7 scrapers run in parallel (ThreadPoolExecutor)
-       │
-       ▼
-filters.py  →  remove spam, keep internships / hackathons / fresher roles
-       │
-       ▼
-matcher.py  →  TF-IDF cosine similarity  →  match_score 0–100 per job
-       │
-       ▼
-db.py  →  insert new jobs into SQLite, skip duplicates
-       │
-       ├──→  telegram_notifier.py  →  alert for score ≥ 30
-       └──→  email_notifier.py    →  digest for score ≥ 20
-```
-
-### Scoring Formula
-```
-W_COSINE    = 0.35   # TF-IDF semantic similarity
-W_SKILL     = 0.40   # skill overlap: matched / sqrt(min(profile_skills, job_skills×2))
-W_EDUCATION = 0.15   # degree match
-W_YEAR      = 0.10   # year of study fit
-
-Final Score = (W_COSINE×cosine + W_SKILL×skill + W_EDU×edu + W_YEAR×yr) × 100
+Resume (PDF/DOCX) or ⚡ Demo Profile
+         │
+         ▼
+[Resume Parser] ───► profile.json (Skills, Education, Experience)
+         │
+         ▼
+[Parallel Scraping Engine] ───► 9 sources (LinkedIn, Internshala, PMIS, Unstop, etc.)
+         │                      (Filtered by active Search Range: Today / 7d / 30d)
+         ▼
+[Strict Classification & Anti-Spam] ───► Discards spam, validates real govt entities
+         │
+         ▼
+[AI Matcher + Skill Coverage] ───► Semantic TF-IDF + Skill Overlap (0–100 Score)
+         │
+         ├──► Dashboard UI (Real-time reactivity + Arc Gauges)
+         ├──► WhatsApp 1-Tap Share
+         └──► Email Digest (Resend API / SMTP)
 ```
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Language | Python 3.14 |
-| Backend | Flask |
-| Frontend | React 18 + Babel CDN (no npm, no build step) |
-| AI Scoring | scikit-learn — TF-IDF + cosine similarity |
-| Scraping | BeautifulSoup + requests |
-| Resume Parsing | pdfplumber |
-| Database | SQLite3 |
-| Notifications | python-telegram-bot + Gmail SMTP (SSL port 465) |
-| Scheduler | schedule library |
-| Charts | Plotly |
-| Deployment | Render.com (free tier) |
-| CI/CD | GitHub → Render auto-deploy |
+| Layer | Technologies |
+|-------|--------------|
+| **Backend** | Python 3.11+, Flask, Gunicorn (gthread workers) |
+| **Frontend** | React 18 (CDN), Babel, Lucide icons, Pure CSS (No npm/build overhead) |
+| **AI & NLP** | scikit-learn (TF-IDF Vectorizer & Cosine Similarity), pdfplumber, python-docx |
+| **Scraping** | Requests, BeautifulSoup4, urllib3 (with rate limiting & session pooling) |
+| **Database** | SQLite3 / Turso LibSQL cloud support (WAL mode, parameterized queries) |
+| **Email Delivery** | Resend API (HTTPS REST — bypasses port blocks) & Gmail SMTP (SSL 465) |
+| **Container & CI** | Docker, Docker Compose, GitHub Actions, Render Cloud Web Service |
 
 ---
 
-## 🔧 Local Setup
+## 🔧 Local Development & Setup
 
-### 1. Clone & install
+### Option 1: Direct Python Virtualenv
 
 ```bash
+# 1. Clone the repository
 git clone https://github.com/Rushi9234/jobsearchy.git
 cd jobsearchy
+
+# 2. Create & activate virtual environment
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+# 3. Install dependencies
 pip install -r requirements.txt
+
+# 4. Configure environment variables
+cp searchy.env.example searchy.env
+# Edit searchy.env with your optional keys (RESEND_API_KEY, TELEGRAM_BOT_TOKEN, etc.)
+
+# 5. Run the web portal
+python web_portal.py
+# Open http://localhost:5000 in your browser
 ```
 
-### 2. Configure credentials
+### Option 2: Docker
 
 ```bash
-cp searcy.env.example searchy.env
-# Edit searchy.env and fill in your values
+# Build and run container locally
+docker build -t jobsearchy .
+docker run -p 5000:5000 --env-file searchy.env jobsearchy
 ```
+
+---
+
+## 🧪 Testing
+
+JobSearchy comes with a comprehensive automated test suite covering all endpoints, parsers, scrapers, and AI matching:
+
+```bash
+# Run full unit test discover
+python -m unittest discover tests -v
+```
+
+---
+
+## 🔑 Environment Variables Reference
+
+Create a `searchy.env` file in the root directory:
 
 ```env
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
-MAIL_FROM=your_email@gmail.com
-MAIL_PASS=your_gmail_app_password
-MAIL_TO=recipient@gmail.com
+# Email Delivery (Recommended: Resend HTTPS API for reliable cloud delivery)
+RESEND_API_KEY=re_your_api_key_here
+MAIL_FROM=notifications@yourdomain.com
+
+# SMTP Fallback (Optional)
+MAIL_TO=recipient@example.com
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
+MAIL_PASS=your_gmail_app_password
+
+# Telegram Bot (Optional)
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=your_telegram_chat_id
+
+# Optional Cloud Database (Turso LibSQL for persistent cloud container storage)
+TURSO_DATABASE_URL=
+TURSO_AUTH_TOKEN=
 ```
-
-### 3. Run locally
-
-```bash
-python web_portal.py
-# Open http://localhost:5000
-```
-
-### 4. Upload your resume on the dashboard → click Find My Jobs
-
----
-
-## 📱 Telegram Setup
-
-1. Message `@BotFather` on Telegram → `/newbot` → copy the token
-2. Message `@userinfobot` → copy your chat ID
-3. Paste both into `searchy.env`
-
-## 📧 Gmail Setup
-
-1. Enable 2FA on your Gmail account
-2. Go to **Google Account → Security → App Passwords**
-3. Generate an app password for "Mail"
-4. Paste into `searchy.env` as `MAIL_PASS`
-
----
-
-## 🌐 Deployment (Render.com)
-
-This project is deployed on [Render.com](https://render.com) free tier.
-
-**To deploy your own instance:**
-
-1. Fork this repo
-2. Connect to Render → New Web Service → select your fork
-3. Set environment variables (same as `searchy.env`) in Render dashboard
-4. Build command: `pip install -r requirements.txt`
-5. Start command: `gunicorn web_portal:app`
-6. Deploy — every push to `main` auto-deploys
-
----
-
-## 📊 Current Stats
-
-| Metric | Value |
-|--------|-------|
-| Jobs scraped per run | 500+ |
-| Active scrapers | 7 |
-| Jobs in DB | 1483+ |
-| Top match score | 64/100 |
-| Auto-scan schedule | 4× daily |
-| Email delivery | Gmail SSL, 500/day free |
-| Deployment | Live on Render |
-
----
-
-## 🗺️ Roadmap
-
-- [ ] Fix hackathons tab (job_type not persisting to DB)
-- [ ] Interview prep per job — AI-generated questions from JD
-- [ ] Resume strength card — "You are strong in: Python, XGBoost"
-- [ ] Deadline countdown on hackathon cards
-- [ ] Dark mode toggle
-- [ ] Skeleton loading states
-- [ ] Confetti animation on 80+ score match
-- [ ] ATS score checker — paste JD, see if resume passes
-- [ ] Weekly auto email digest — every Monday 9AM
-- [ ] Multi-user support with Supabase
-
----
-
-## 🚫 Never Push to GitHub
-
-```
-searchy.env
-profile.json
-searchy.db
-searchy.log
-*.pdf
-__pycache__/
-```
-
----
-
-## 👤 Author
-
-**Rushikesh Baban Kedar**
-B.Tech Computer Science Engineering | MIT Academy of Engineering, Pune (2023–2027)
-GitHub: [Rushi9234](https://github.com/Rushi9234)
-LinkedIn: [rushikesh-kedar](https://linkedin.com/in/rushikesh-kedar-87106b373)
-Email: rushikedar40@gmail.com
 
 ---
 
 ## 📄 License
 
-For academic and portfolio purposes only.
+This project is licensed under the [MIT License](LICENSE).

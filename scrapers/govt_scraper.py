@@ -65,29 +65,21 @@ def _scrape_internshala_govt(session) -> list[dict]:
     jobs = []
     seen = set()
 
-    # All govt-adjacent category slugs on Internshala
+    # Only true govt / PSU / public-policy categories on Internshala
     categories = [
         "government-internship",
-        "public-policy-internship",
-        "research-internship",
-        "data-science-internship",
-        "economics-internship",
-        "finance-internship",
-        "statistics-internship",
         "psu-internship",
-        "ngo-internship",
-        "social-work-internship",
+        "public-policy-internship",
     ]
-    # Also keyword-based pages for govt roles
+    # Keyword-based queries strictly for govt bodies
     keywords = [
         "government", "psu", "public sector", "niti aayog",
-        "policy research", "social research", "economics research",
-        "data analyst government", "upsc", "civil services",
+        "ministry", "central government",
     ]
 
     # Category pages
     for cat in categories:
-        for page in range(1, 4):
+        for page in range(1, 3):
             url = f"https://internshala.com/internships/{cat}"
             if page > 1:
                 url += f"/page-{page}"
@@ -136,6 +128,22 @@ def _parse_internshala_cards(html: str, source: str) -> list[dict]:
 
             company_el = card.select_one(".company-name")
             company    = company_el.get_text(strip=True) if company_el else "Organisation"
+
+            # Strict Govt filter: If source is govt_internshala, reject private commercial entities
+            if source == "govt_internshala":
+                c_low = company.lower()
+                t_low = title.lower()
+                private_markers = ["pvt ltd", "pvt. ltd", "private limited", "ltd.", "llp", "inc.",
+                                   "technologies", "consultancy", "solutions", "wedding", "elevate labs",
+                                   "ventures", "corporation private"]
+                govt_markers = ["govt", "government", "ministry", "department", "council", "commission",
+                                "authority", "national", "state", "psu", "iit", "nit", "iiit", "aiims",
+                                "isro", "drdo", "csir", "niti", "rbi", "sebi", "nabard", "pmis", "bhel",
+                                "ongc", "ntpc", "iocl", "gail", "sail", "hal", "nic", "c-dac", "barc",
+                                "police", "municipal", "collectorate", "railways", "public policy",
+                                "panchayat", "viksit bharat", "swachh"]
+                if any(p in c_low for p in private_markers) and not any(g in c_low or g in t_low for g in govt_markers):
+                    continue
 
             loc_el   = card.select_one(".locations span")
             location = loc_el.get_text(strip=True) if loc_el else "India"
@@ -304,6 +312,7 @@ def _scrape_linkedin_govt(session) -> list[dict]:
                 "keywords": search["keywords"],
                 "location": search["location"],
                 "f_JT":     "I",
+                "f_TPR":    "r604800",  # Past 7 days
                 "start":    start,
             }
             resp = _safe_get(session, "https://www.linkedin.com/jobs/search", params=params)
@@ -325,6 +334,11 @@ def _scrape_linkedin_govt(session) -> list[dict]:
                     if not title_el or not link_el:
                         continue
 
+                    company_name = company_el.get_text(strip=True) if company_el else "Government"
+                    c_low = company_name.lower()
+                    if any(p in c_low for p in ["pvt ltd", "private limited", "technologies", "consultancy", "llp", "inc."]):
+                        continue
+
                     url = link_el["href"].split("?")[0]
                     jid = _job_id("linkedin_govt", url)
                     if jid in seen:
@@ -335,7 +349,7 @@ def _scrape_linkedin_govt(session) -> list[dict]:
                         "job_id":      jid,
                         "source":      "linkedin_govt",
                         "title":       title_el.get_text(strip=True),
-                        "company":     company_el.get_text(strip=True) if company_el else "Government",
+                        "company":     company_name,
                         "location":    loc_el.get_text(strip=True) if loc_el else "India",
                         "duration":    None,
                         "stipend":     None,
@@ -453,7 +467,7 @@ def _static_govt_portals() -> list[dict]:
             "location": "Bengaluru / Thiruvananthapuram / Ahmedabad",
             "duration": "2 months",
             "stipend": "₹10,000/month",
-            "url": "https://www.isro.gov.in/Internship.html",
+            "url": "https://www.isro.gov.in/Careers.html",
             "tags": ["government", "isro", "space", "research", "python", "engineering", "internship"],
             "description": "ISRO internship for B.Tech/M.Tech students in CS, Electronics. Work on real space missions and satellite systems.",
             "scraped_at": now,
@@ -466,7 +480,7 @@ def _static_govt_portals() -> list[dict]:
             "location": "Pan India (Multiple Labs)",
             "duration": "1–6 months",
             "stipend": "₹5,000–₹15,000/month",
-            "url": "https://www.drdo.gov.in/students-corner",
+            "url": "https://drdo.gov.in/drdo/careers",
             "tags": ["government", "drdo", "defence", "research", "ai", "machine learning", "internship"],
             "description": "DRDO research internships in CS, AI, ML, Electronics. Work at defence labs. Apply via individual lab websites.",
             "scraped_at": now,
@@ -604,14 +618,27 @@ def _static_govt_portals() -> list[dict]:
         {
             "job_id": "static_iit_research",
             "source": "govt_portal",
-            "title": "IIT Research Internship (SRFP / SURGE / SPARK)",
-            "company": "IITs (via DST-SERB / Individual Programs)",
-            "location": "Pan India (IIT Campuses)",
-            "duration": "2 months (Summer)",
-            "stipend": "₹10,000–₹20,000/month",
-            "url": "https://www.iitb.ac.in/en/education/surge-program",
+            "title": "IIT Kanpur SURGE Summer Research Programme",
+            "company": "IIT Kanpur",
+            "location": "IIT Kanpur / Remote",
+            "duration": "8 weeks (Summer)",
+            "stipend": "₹12,500/month",
+            "url": "https://surge.iitk.ac.in",
             "tags": ["research", "iit", "data science", "machine learning", "python", "internship", "academic"],
-            "description": "IIT research internships (SURGE/SPARK/SRFP) for B.Tech students. ML, data science, AI, systems research. Highly competitive but excellent for resume.",
+            "description": "SURGE (Students Undergraduate Research Graduate Excellence) programme at IIT Kanpur. Work with leading professors on cutting-edge research in AI, CS, and engineering.",
+            "scraped_at": now,
+        },
+        {
+            "job_id": "static_iit_spark",
+            "source": "govt_portal",
+            "title": "IIT Roorkee SPARK Summer Internship",
+            "company": "IIT Roorkee",
+            "location": "IIT Roorkee",
+            "duration": "8 weeks (Summer)",
+            "stipend": "₹2,500/week",
+            "url": "https://spark.iitr.ac.in",
+            "tags": ["research", "iit", "engineering", "machine learning", "internship", "academic"],
+            "description": "SPARK initiative at IIT Roorkee provides research fellowships for undergraduate students from recognized institutes to conduct research in computer science and technology.",
             "scraped_at": now,
         },
         {

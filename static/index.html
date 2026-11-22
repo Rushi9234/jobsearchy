@@ -950,19 +950,21 @@ function Skels(){
 }
 
 function getJobType(job){
+  if(job.job_type==='govt') return{label:'Govt',bg:'#fffbeb',color:'#b45309',border:'#fde68a'};
+  if(job.job_type==='hackathon') return{label:'Hackathon',bg:'#fdf4ff',color:'#7e22ce',border:'#e9d5ff'};
+  if(job.job_type==='job') return{label:'Full-time',bg:'#eff6ff',color:'#1d4ed8',border:'#bfdbfe'};
+  if(job.job_type==='internship') return{label:'Internship',bg:'#f0fdf4',color:'#15803d',border:'#bbf7d0'};
+
   const title=(job.title||'').toLowerCase();
   const desc=(job.description||'').toLowerCase();
   const t=title+' '+desc;
-  const src=job.source||'';
+  const src=(job.source||'').toLowerCase();
   if(/hackathon|ideathon|datathon|buildathon|devfolio|unstop|dare2compete/.test(t))
     return{label:'Hackathon',bg:'#fdf4ff',color:'#7e22ce',border:'#e9d5ff'};
-  if(/govt|government.*scheme|niti aayog|isro|drdo|ministry of|upsc|pradhan mantri/.test(t)||/govt_internshala|govt_portal|linkedin_govt|niti_aayog|mygov/.test(src))
-    return{label:'Govt',bg:'#f0f9ff',color:'#0369a1',border:'#bae6fd'};
-  if(/full.?time|permanent position/.test(title)&&!/intern/.test(title))
+  if(/govt_portal|pmis|pminternship/.test(src)||/pm internship|niti aayog|isro|drdo|aicte/.test(t))
+    return{label:'Govt',bg:'#fffbeb',color:'#b45309',border:'#fde68a'};
+  if(/\bfull.?time\b|\bpermanent position\b/.test(title)&&!/intern/.test(title))
     return{label:'Full-time',bg:'#eff6ff',color:'#1d4ed8',border:'#bfdbfe'};
-  if(/intern|internship/.test(title)||src==='internshala')
-    return{label:'Internship',bg:'#f0fdf4',color:'#15803d',border:'#bbf7d0'};
-  if(src==='linkedin') return{label:'Full-time',bg:'#eff6ff',color:'#1d4ed8',border:'#bfdbfe'};
   return{label:'Internship',bg:'#f0fdf4',color:'#15803d',border:'#bbf7d0'};
 }
 
@@ -1400,6 +1402,12 @@ function JobCard({job,onSave,idx}){
       ? {label:'Improve First', bg:'#fffbeb', color:'#b45309', border:'#fde68a'}
       : {label:'Ignore', bg:'#fef2f2', color:'#b91c1c', border:'#fecaca'};
 
+  const daysAgo = job.days_ago !== undefined ? job.days_ago : 0;
+  const freshnessText = daysAgo === 0 ? 'Today' : `${daysAgo}d ago`;
+  const freshnessBg = daysAgo <= 1 ? '#f0fdf4' : daysAgo <= 3 ? '#eff6ff' : daysAgo <= 7 ? '#fffbeb' : '#f8fafc';
+  const freshnessColor = daysAgo <= 1 ? '#15803d' : daysAgo <= 3 ? '#1d4ed8' : daysAgo <= 7 ? '#b45309' : '#64748b';
+  const freshnessBorder = daysAgo <= 1 ? '#86efac' : daysAgo <= 3 ? '#bfdbfe' : daysAgo <= 7 ? '#fcd34d' : '#e2e8f0';
+
   const sourceText = String(job.source || '').toLowerCase();
   const knownSource = /linkedin|internshala|naukri|unstop|devfolio|wellfound|hackerearth|govt|government|mygov|niti/.test(sourceText);
 
@@ -1445,6 +1453,14 @@ function JobCard({job,onSave,idx}){
               <span style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:5,
                 border:`1px solid ${jtype.border}`,background:jtype.bg,color:jtype.color,
                 flexShrink:0}}>{jtype.label}</span>
+              <span style={{
+                fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:5,
+                border:`1px solid ${freshnessBorder}`,background:freshnessBg,color:freshnessColor,
+                flexShrink:0,display:'inline-flex',alignItems:'center',gap:4
+              }}>
+                <span style={{width:5,height:5,borderRadius:'50%',background:freshnessColor}}/>
+                {freshnessText}
+              </span>
                               <span className="action-rec-badge" style={{
                 background: actionRec.bg,
                 color: actionRec.color,
@@ -1783,8 +1799,17 @@ function JobsTab({showToast,mode}){
   const [jobType,setJobType]=useState('all');
   const [pipelineActive,setPipelineActive]=useState(false);
   const [pipelineMsg,setPipelineMsg]=useState('');
+  const [days,setDays]=useState(()=>Number(localStorage.getItem('jobsearchy_search_days')||7));
 
-  useEffect(()=>{loadJobs();},[mode,minScore,source,jobType]);
+  useEffect(()=>{
+    const h=(e)=>{
+      if(e.detail && e.detail !== days) setDays(e.detail);
+    };
+    window.addEventListener('days-changed',h);
+    return()=>window.removeEventListener('days-changed',h);
+  },[days]);
+
+  useEffect(()=>{loadJobs();},[mode,minScore,source,jobType,days]);
   useEffect(()=>{
     const h=()=>{loadJobs();setPipelineActive(false);setPipelineMsg('');};
     window.addEventListener('pipeline-done',h);
@@ -1802,10 +1827,13 @@ function JobsTab({showToast,mode}){
     return()=>clearInterval(iv);
   },[]);
 
-  async function loadJobs(){
+  async function loadJobs(overrideDays){
     setLoading(true);
-    const p=new URLSearchParams({limit:200,min_score:minScore});
+    const activeDays = overrideDays !== undefined ? overrideDays : days;
+    const p=new URLSearchParams({limit:300,min_score:minScore});
     if(source)p.append('source',source);
+    if(activeDays)p.append('days',activeDays);
+    if(jobType&&jobType!=='all')p.append('job_type',jobType);
     const data=await api.get(`/api/jobs?${p}`);
     let result=Array.isArray(data)?data:[];
     if(mode==='top')result=[...result].sort((a,b)=>(b.score||b.match_score||0)-(a.score||a.match_score||0)).filter(j=>(j.score||j.match_score||0)>=25);
@@ -1864,7 +1892,7 @@ function JobsTab({showToast,mode}){
               <button onClick={async()=>{
                 if(!barEmail||barSent)return;
                 setBarSent('sending');
-                const r=await api.post('/api/send-digest',{email:barEmail});
+                const r=await api.post('/api/send-digest',{email:barEmail,days});
                 if(r&&r.success){
                   setBarSent(true);
                   setTimeout(()=>{setBarSent(false);setShowEmailBar(false);},2000);
@@ -1925,6 +1953,28 @@ function JobsTab({showToast,mode}){
           <option value={50}>Score ≥ 50</option>
           <option value={65}>Score ≥ 65</option>
         </select>
+        <div style={{display:'inline-flex',alignItems:'center',gap:3,background:'var(--w)',padding:'3px 6px',borderRadius:8,border:'1px solid var(--g200)',marginLeft:'auto'}}>
+          <span style={{fontSize:11,color:'var(--g500)',fontWeight:600,padding:'0 4px',display:'inline-flex',alignItems:'center',gap:3}}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Posted:
+          </span>
+          {[1,3,7,15,30].map(d=>(
+            <button key={d}
+              onClick={()=>{
+                setDays(d);
+                localStorage.setItem('jobsearchy_search_days',d);
+                window.dispatchEvent(new CustomEvent('days-changed',{detail:d}));
+              }}
+              style={{
+                border:'none',borderRadius:6,padding:'4px 8px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'DM Sans',
+                background:days===d?'var(--i600)':'transparent',
+                color:days===d?'#fff':'var(--g600)',
+                transition:'all .15s'
+              }}>
+              {d===1?'Today':`${d}d`}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading?<Skels/>:
@@ -2737,7 +2787,20 @@ function PipelinePanel({showToast,onFindJobs,findRunning,profile}){
   const funRef=useRef();
   const [email,setEmail]=useState(profile?.email||'');
   const [sending,setSending]=useState(false);
-  const [days,setDays]=useState(7);
+  const [days,setDays]=useState(()=>Number(localStorage.getItem('jobsearchy_search_days')||7));
+
+  function changeDays(val){
+    const v=Number(val);
+    setDays(v);
+    localStorage.setItem('jobsearchy_search_days',v);
+    window.dispatchEvent(new CustomEvent('days-changed',{detail:v}));
+  }
+
+  useEffect(()=>{
+    const h=(e)=>{if(e.detail&&e.detail!==days)setDays(e.detail);};
+    window.addEventListener('days-changed',h);
+    return()=>window.removeEventListener('days-changed',h);
+  },[days]);
   const ivRef=useRef();
   const chips=[1,5,10,15,20,30];
   const profileSkills=profile?.skills?.technical||[];
@@ -2798,7 +2861,7 @@ function PipelinePanel({showToast,onFindJobs,findRunning,profile}){
   }
 
   async function sendDigest(){
-    setSending(true);const r=await api.post('/api/send-digest',{email});setSending(false);
+    setSending(true);const r=await api.post('/api/send-digest',{email,days});setSending(false);
     r.error?showToast(r.error,'error'):showToast('Digest sent!','success');
   }
 
@@ -2823,11 +2886,11 @@ function PipelinePanel({showToast,onFindJobs,findRunning,profile}){
           <span style={{fontWeight:700,color:'var(--i600)',fontFamily:'Bricolage Grotesque'}}>{days} day{days>1?'s':''}</span>
         </div>
         <input type="range" min="1" max="30" value={days} className="ds" style={{'--pct':pct()}}
-          onChange={e=>{const v=Number(e.target.value);setDays(v);e.target.style.setProperty('--pct',Math.round(((v-1)/29)*100)+'%')}}/>
+          onChange={e=>{const v=Number(e.target.value);changeDays(v);e.target.style.setProperty('--pct',Math.round(((v-1)/29)*100)+'%')}}/>
         <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--g300)'}}>
           <span>Today</span><span>30 days</span>
         </div>
-        <div className="qc">{chips.map(d=><button key={d} className={`chip${days===d?' active':''}`} onClick={()=>setDays(d)}>{d===1?'Today':`${d}d`}</button>)}</div>
+        <div className="qc">{chips.map(d=><button key={d} className={`chip${days===d?' active':''}`} onClick={()=>changeDays(d)}>{d===1?'Today':`${d}d`}</button>)}</div>
       </div>
       <div className="div"/>
       <div>
@@ -3252,7 +3315,8 @@ function App(){
                   style={{marginBottom:10,fontSize:13}}
                   onKeyDown={async e=>{
                     if(e.key==='Enter'&&popupEmail){
-                      const r=await api.post('/api/send-digest',{email:popupEmail});
+                      const savedDays = Number(localStorage.getItem('jobsearchy_search_days') || 7);
+                      const r=await api.post('/api/send-digest',{email:popupEmail,days:savedDays});
                       if(r&&r.success) setPopupSent(true);
                       else showToast(r?.error||'Email failed','error');
                     }
@@ -3263,7 +3327,8 @@ function App(){
                     if(!popupEmail){showToast('Enter your email','error');return;}
                     if(popupSending)return;
                     setPopupSending(true);
-                    await api.post('/api/send-digest',{email:popupEmail});
+                    const savedDays = Number(localStorage.getItem('jobsearchy_search_days') || 7);
+                    await api.post('/api/send-digest',{email:popupEmail,days:savedDays});
                     setPopupSending(false);
                     setPopupSent(true);
                   }} disabled={popupSending} style={{flex:1,background:popupSending?'#6366f1':'var(--i600)',color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:14,fontWeight:600,cursor:popupSending?'not-allowed':'pointer',fontFamily:'Bricolage Grotesque',display:'flex',alignItems:'center',justifyContent:'center',gap:8,opacity:popupSending?0.8:1}}>

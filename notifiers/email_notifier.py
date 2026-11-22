@@ -124,7 +124,7 @@ def _job_card(job: dict) -> str:
                          style="display:inline-block;background:#2563eb;
                                 color:white;border-radius:6px;padding:4px 16px;
                                 font-size:12px;font-weight:600;text-decoration:none;">
-                        Apply Now â†’
+                        Apply Now &rarr;
                       </a>
                     </td>
                   </tr>
@@ -243,19 +243,18 @@ def _build_html(
     date_str = now.strftime("%A, %d %B %Y")
     time_str = now.strftime("%I:%M %p")
 
-    # Split jobs into categories
-    internships = [j for j in jobs if any(
-        kw in (j.get("title","") + j.get("source","")).lower()
-        for kw in ["intern","internship","internshala"]
-    )]
-    hackathons = [j for j in jobs if any(
-        kw in (j.get("title","") + j.get("source","")).lower()
-        for kw in ["hackathon","competition","challenge","devfolio","unstop","hackerearth"]
-    )]
-    govt = [j for j in jobs if any(
-        kw in (j.get("source","") + j.get("title","")).lower()
-        for kw in ["govt","government","niti","isro","drdo","aicte","mygov"]
-    )]
+    # Unified category classification
+    try:
+        from web_portal import classify_job
+    except ImportError:
+        def classify_job(j):
+            return "job"
+
+    internships = [j for j in jobs if classify_job(j) == "internship"]
+    hackathons  = [j for j in jobs if classify_job(j) == "hackathon"]
+    govt        = [j for j in jobs if classify_job(j) == "govt"]
+    fulltime    = [j for j in jobs if classify_job(j) == "job"]
+
     # Top matches — best scoring from all
     top = sorted(jobs, key=lambda x: x.get("match_score",0), reverse=True)[:8]
 
@@ -272,10 +271,10 @@ def _build_html(
 
     first_name = user_name.split()[0] if user_name and user_name != "there" else "there"
 
-    top_section         = _section("Top Matches For You", "", top, "#2563eb")
-    internship_section  = _section("Internships", "", remaining_internships, "#16a34a")
-    hackathon_section   = _section("Hackathons & Competitions", "âš¡", remaining_hackathons, "#7c3aed")
-    govt_section        = _section("Government Opportunities", "", remaining_govt, "#dc2626")
+    top_section         = _section("Top Matches For You", "&#9733;", top, "#2563eb")
+    internship_section  = _section("Internships", "&#128188;", remaining_internships, "#16a34a")
+    hackathon_section   = _section("Hackathons & Competitions", "&#9889;", remaining_hackathons, "#7c3aed")
+    govt_section        = _section("Government Opportunities", "&#127963;", remaining_govt, "#dc2626")
     gap_section         = _skill_gap_section(all_skills or [], jobs)
 
     return f"""<!DOCTYPE html>
