@@ -17,11 +17,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+from pathlib import Path
+
+def get_searchy_root() -> Path:
+    return Path(__file__).resolve().parent
+
 def run_pipeline():
     logger.info("Scheduler triggering pipeline...")
+    root = get_searchy_root()
     result = subprocess.run(
         [sys.executable, "main.py"],
-        cwd=r"D:\searchy",
+        cwd=str(root),
     )
     if result.returncode == 0:
         logger.info("Pipeline completed successfully.")

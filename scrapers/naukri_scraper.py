@@ -233,8 +233,16 @@ def _try_naukri_campus(term: str, seen: set) -> list[dict]:
     return jobs
 
 
+# INACTIVE / DEPRECATED: Preserved in codebase for future adapter updates.
+# Currently inactive because campus.naukri.com DNS is dead and public HTML triggers Akamai bot blocks.
+ENABLED = False
+
+
 def scrape_naukri(keywords: Optional[list] = None, pages: int = 1) -> list[dict]:
-    """Scrape Naukri using 3-strategy fallback: API → Campus API → HTML."""
+    """Scrape Naukri using 3-strategy fallback (currently inactive)."""
+    if not ENABLED:
+        return []
+
     jobs = []
     seen = set()
 
@@ -273,6 +281,8 @@ def scrape_naukri(keywords: Optional[list] = None, pages: int = 1) -> list[dict]
 
     print(f"[Naukri] Scraped {len(jobs)} listings")
     return jobs
+
+scrape = scrape_naukri
 
 
 if __name__ == "__main__":

@@ -14,6 +14,8 @@ SPAM_TITLE_PATTERNS = [
     r"\bfranchise\b", r"\bself.?employed\b",
     r"\binvestment advisor\b", r"\binsurance agent\b",
     r"\breal estate agent\b",
+    r"\bdata entry\b", r"\btyping work\b", r"\btyping\b",
+    r"\bform filling\b", r"\bcaptcha\b",
 ]
 
 # Source whitelist — never filter these sources at all
@@ -28,24 +30,17 @@ ALWAYS_KEEP_TYPES = {"hackathon", "internship"}
 
 def _is_spam(job: dict) -> bool:
     """Returns True if job looks like spam/MLM/irrelevant listing."""
-    title = (job.get("title") or "").lower()
-    source = (job.get("source") or "").lower()
+    title = (job.get("title") or "").strip().lower()
+    url = (job.get("url") or "").strip()
 
-    # Never flag trusted sources
-    if source in TRUSTED_SOURCES:
-        return False
+    # Empty title or url = definitely skip
+    if not title or not url:
+        return True
 
-    # Hackathons and internships are always kept
-    if job.get("job_type") in ALWAYS_KEEP_TYPES:
-        return False
-
+    # Check spam keywords across all platforms
     for pat in SPAM_TITLE_PATTERNS:
         if re.search(pat, title, re.IGNORECASE):
             return True
-
-    # Empty title or url = definitely skip
-    if not job.get("title") or not job.get("url"):
-        return True
 
     return False
 

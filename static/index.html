@@ -10,9 +10,19 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script>
+  (function(){
+    try{
+      var saved = localStorage.getItem('jobsearchy_theme') || 'obsidian-dark';
+      document.documentElement.setAttribute('data-theme', saved);
+    }catch(e){}
+  })();
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{
+
+/* ─── THEME 1: CLASSIC (DEFAULT LIGHT) ───────────────────────── */
+:root, [data-theme="classic"]{
   --w:#fff;--g50:#f8fafc;--g100:#f1f5f9;--g200:#e2e8f0;--g300:#cbd5e1;--g400:#94a3b8;--g500:#64748b;--g600:#475569;--g700:#334155;--g800:#1e293b;--g900:#0f172a;
   --i50:#eef2ff;--i100:#e0e7ff;--i200:#c7d2fe;--i400:#818cf8;--i500:#6366f1;--i600:#4f46e5;--i700:#4338ca;
   --gr50:#f0fdf4;--gr500:#22c55e;--gr600:#16a34a;
@@ -26,8 +36,46 @@
   --sh-lg:0 10px 15px rgba(0,0,0,.1),0 4px 6px rgba(0,0,0,.05);
   --sh-xl:0 20px 25px rgba(0,0,0,.1),0 10px 10px rgba(0,0,0,.04);
   --r:10px;--rl:14px;--rxl:20px;
+  --nav-bg:rgba(255,255,255,.92);
 }
-html,body{height:100%;background:var(--w);color:var(--g900);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;font-size:14px}
+
+/* ─── THEME 2: OBSIDIAN DARK (MINIMAL LUXURY NEO-GLOW) ────────── */
+[data-theme="obsidian-dark"]{
+  --w:#1a1b28;--g50:#0c0d14;--g100:#12131d;--g200:rgba(255,255,255,0.09);--g300:rgba(255,255,255,0.16);--g400:#5f657e;--g500:#9da3ba;--g600:#c5cadf;--g700:#e2e6f5;--g800:#f1f3fa;--g900:#ffffff;
+  --i50:rgba(139,92,246,0.16);--i100:rgba(139,92,246,0.28);--i200:rgba(139,92,246,0.45);--i400:#a78bfa;--i500:#8b5cf6;--i600:#7c3aed;--i700:#6d28d9;
+  --gr50:rgba(16,185,129,0.14);--gr500:#10b981;--gr600:#059669;
+  --am50:rgba(245,158,11,0.14);--am500:#f59e0b;--am600:#d97706;
+  --rd50:rgba(239,68,68,0.14);--rd500:#ef4444;
+  --cy50:rgba(6,182,212,0.14);--cy600:#06b6d4;
+  --pu50:rgba(255,59,113,0.14);--pu600:#ff3b71;
+  --sh-sm:0 1px 2px rgba(0,0,0,.35);
+  --sh:0 4px 14px rgba(0,0,0,.45);
+  --sh-md:0 8px 22px rgba(0,0,0,.55);
+  --sh-lg:0 12px 30px rgba(0,0,0,.65);
+  --sh-xl:0 20px 44px rgba(0,0,0,.75);
+  --r:10px;--rl:14px;--rxl:20px;
+  --nav-bg:rgba(18,19,29,.94);
+}
+
+/* ─── THEME 3: PORCELAIN LIGHT (TINTED SLATE & CRISP CARDS) ───── */
+[data-theme="porcelain-light"]{
+  --w:#ffffff;--g50:#ebedf5;--g100:#f0f2f8;--g200:#d5daf0;--g300:#b8c1e2;--g400:#7e859b;--g500:#474d63;--g600:#2d334a;--g700:#1a1e30;--g800:#131726;--g900:#0f121e;
+  --i50:#f3f0ff;--i100:#e9e3fe;--i200:#d1c4fd;--i400:#8b5cf6;--i500:#7047f3;--i600:#5e35db;--i700:#4c26be;
+  --gr50:#ecfdf5;--gr500:#10b981;--gr600:#059669;
+  --am50:#fffbeb;--am500:#f59e0b;--am600:#d97706;
+  --rd50:#fef2f2;--rd500:#ef4444;
+  --cy50:#ecfeff;--cy600:#0891b2;
+  --pu50:#fff1f2;--pu600:#e11d48;
+  --sh-sm:0 1px 2px rgba(15,20,35,.04);
+  --sh:0 2px 6px rgba(15,20,35,.06);
+  --sh-md:0 6px 16px rgba(15,20,35,.08);
+  --sh-lg:0 12px 24px rgba(15,20,35,.1);
+  --sh-xl:0 20px 32px rgba(15,20,35,.12);
+  --r:10px;--rl:14px;--rxl:20px;
+  --nav-bg:rgba(255,255,255,.96);
+}
+
+html,body{height:100%;background:var(--g50);color:var(--g900);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;font-size:14px;transition:background-color .25s ease,color .25s ease}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--g100)}::-webkit-scrollbar-thumb{background:var(--g300);border-radius:99px}
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
@@ -48,11 +96,19 @@ html,body{height:100%;background:var(--w);color:var(--g900);font-family:'Inter',
 .fi{animation:fadeIn .3s ease both}
 
 /* NAV */
-.nav{position:fixed;top:0;left:0;right:0;z-index:100;height:58px;background:rgba(255,255,255,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--g200);display:flex;align-items:center;justify-content:space-between;padding:0 28px}
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;height:58px;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--g200);display:flex;align-items:center;justify-content:space-between;padding:0 28px;transition:background .25s ease,border-color .25s ease}
 .logo{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.6px;cursor:pointer}
 .logo em{color:var(--i600);font-style:normal}
-.nav-pill{display:flex;align-items:center;gap:8px;padding:5px 14px 5px 6px;background:var(--g50);border:1px solid var(--g200);border-radius:99px;cursor:pointer;font-size:13px;font-weight:500;color:var(--g700)}
+.nav-pill{display:flex;align-items:center;gap:8px;padding:5px 14px 5px 6px;background:var(--w);border:1px solid var(--g200);border-radius:99px;cursor:pointer;font-size:13px;font-weight:500;color:var(--g700)}
 .nav-av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--i500),var(--i700));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+
+/* THEME CONTROLLER & DEMO PROFILE */
+.theme-toggle-group{display:inline-flex;align-items:center;background:var(--g100);border:1px solid var(--g200);border-radius:999px;padding:3px;gap:2px}
+.theme-pill{background:transparent;border:none;border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:600;color:var(--g500);cursor:pointer;font-family:inherit;transition:all .15s ease;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.theme-pill:hover{color:var(--g900)}
+.theme-pill.active{background:var(--w);color:var(--g900);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.btn-demo-profile{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:var(--i50);color:var(--i600);border:1.5px solid var(--i200);transition:all .2s ease;white-space:nowrap}
+.btn-demo-profile:hover{background:var(--i600);color:#fff;border-color:var(--i600);transform:translateY(-1px);box-shadow:0 3px 10px rgba(99,102,241,.25)}
 
 /* HERO */
 .hero{min-height:100vh;padding:100px 28px 60px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 80% 60% at 60% 0%,rgba(99,102,241,.07) 0%,transparent 60%)}
@@ -190,6 +246,31 @@ select.inp{cursor:pointer;appearance:none;background-image:url("data:image/svg+x
 .btn-sv{background:var(--w);color:var(--g500);border:1.5px solid var(--g200);font-size:12px;padding:6px 13px;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;font-weight:500;transition:all .2s;white-space:nowrap}
 .btn-sv:hover{border-color:var(--i300);color:var(--i600)}
 .btn-sv.saved{border-color:var(--i300);color:var(--i600);background:var(--i50)}
+/* Smart job badges */
+.action-rec-badge,
+.trust-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: .2px;
+  flex-shrink: 0;
+}
+
+.job-warning-box {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: 11px;
+  padding: 9px 11px;
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+
+.job-warning-box b {
+  font-weight: 900;
+}
 
 /* SCORE RING */
 .sr-wrap{position:relative;flex-shrink:0}
@@ -269,6 +350,555 @@ select.inp{cursor:pointer;appearance:none;background-image:url("data:image/svg+x
 .cc2-n{font-size:12px;font-weight:600;color:var(--g700);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cc2-c{font-size:10px;color:var(--g400)}
 .fb{display:flex;align-items:center;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+/* Career GPS */
+.career-hero {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  border-radius: 22px;
+  padding: 24px;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 20px 50px rgba(79,70,229,.22);
+}
+
+.career-kicker {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  opacity: .75;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.career-title {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -.6px;
+  margin-bottom: 6px;
+}
+
+.career-sub {
+  font-size: 13px;
+  opacity: .85;
+  max-width: 560px;
+  line-height: 1.55;
+}
+
+.career-score {
+  width: 120px;
+  height: 120px;
+  border-radius: 28px;
+  background: rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.24);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.career-score-num {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 34px;
+  font-weight: 900;
+}
+
+.career-score-label {
+  font-size: 11px;
+  opacity: .78;
+  margin-top: 3px;
+  text-align: center;
+}
+
+.career-grid {
+  display: grid;
+  grid-template-columns: 1.35fr .9fr;
+  gap: 16px;
+}
+
+.career-card {
+  background: var(--w);
+  border: 1.5px solid var(--g200);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: var(--sh);
+}
+
+.career-card-title {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--g900);
+  margin-bottom: 14px;
+}
+
+.career-role {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--g100);
+}
+
+.career-role:last-child {
+  border-bottom: none;
+}
+
+.career-role-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--g800);
+  margin-bottom: 3px;
+}
+
+.career-role-reason {
+  font-size: 11px;
+  color: var(--g500);
+  line-height: 1.45;
+}
+
+.career-role-score {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  color: var(--i600);
+  font-size: 18px;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.career-bar {
+  height: 6px;
+  background: var(--g100);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 9px;
+}
+
+.career-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4f46e5, #06b6d4);
+}
+
+.career-skill-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.career-skill {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--g50);
+  border: 1px solid var(--g200);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--g700);
+}
+
+.career-skill b {
+  color: var(--am600);
+  font-size: 10px;
+  background: var(--am50);
+  border: 1px solid #fde68a;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.career-warning {
+  margin-top: 14px;
+  background: var(--am50);
+  border: 1px solid #fde68a;
+  color: #92400e;
+  padding: 11px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.career-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.career-mini {
+  background: var(--w);
+  border: 1.5px solid var(--g200);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--sh-sm);
+}
+
+.career-mini-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--g400);
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.career-mini-value {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--i600);
+  margin-bottom: 5px;
+}
+
+.career-mini-text {
+  font-size: 11px;
+  color: var(--g500);
+  line-height: 1.5;
+}
+
+.career-plan {
+  display: grid;
+  gap: 10px;
+}
+
+.career-plan-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--g50);
+  border: 1px solid var(--g200);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--g700);
+  line-height: 1.4;
+}
+
+.career-day {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background: var(--i600);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .career-grid,
+  .career-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .career-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+/* Joby AI Chatbot */
+.joby-widget {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 9999;
+  font-family: inherit;
+}
+
+.joby-float {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4);
+  box-shadow: 0 18px 45px rgba(79, 70, 229, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.joby-float:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 24px 60px rgba(79, 70, 229, 0.45);
+}
+
+.joby-glow {
+  position: absolute;
+  inset: -8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.25), rgba(6, 182, 212, 0.25));
+  animation: jobyPulse 1.8s infinite;
+}
+
+.joby-face {
+  position: relative;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #4f46e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 20px;
+}
+
+@keyframes jobyPulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.75;
+  }
+  70% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+}
+
+.joby-panel {
+  position: absolute;
+  right: 0;
+  bottom: 82px;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  background: var(--w);
+  border: 1px solid var(--g200);
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  animation: jobySlideUp 0.22s ease;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease;
+}
+
+.joby-panel.expanded {
+  width: 520px;
+}
+
+@keyframes jobySlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.joby-header {
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.joby-avatar-small {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 15px;
+}
+
+.joby-title {
+  font-weight: 900;
+  font-size: 14.5px;
+}
+
+.joby-status {
+  margin-top: 3px;
+  font-size: 11.5px;
+  opacity: 0.88;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.joby-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+}
+
+.joby-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.joby-icon-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.joby-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.joby-messages {
+  padding: 16px;
+  height: 380px;
+  max-height: 56vh;
+  overflow-y: auto;
+  background: var(--g50);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.joby-panel.expanded .joby-messages {
+  height: 500px;
+  max-height: 72vh;
+}
+
+.joby-message {
+  max-width: 90%;
+  padding: 11px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.bot-message {
+  background: var(--i50);
+  color: var(--g900);
+  border: 1px solid var(--i200);
+  border-bottom-left-radius: 6px;
+}
+
+.user-message {
+  margin-left: auto;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white;
+  border-bottom-right-radius: 6px;
+}
+
+.joby-thinking {
+  background: var(--i50) !important;
+  color: var(--i600) !important;
+  border: 1px dashed var(--i400) !important;
+  font-style: italic;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.joby-actions {
+  padding: 8px 14px;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  background: var(--w);
+  border-top: 1px solid var(--g100);
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.joby-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.joby-chip {
+  border: 1px solid var(--g200);
+  background: var(--g100);
+  color: var(--i600);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.joby-chip:hover {
+  background: var(--i600);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.joby-input-row {
+  padding: 12px 14px;
+  border-top: 1px solid var(--g200);
+  display: flex;
+  gap: 8px;
+  background: var(--w);
+  flex-shrink: 0;
+}
+
+.joby-input {
+  flex: 1;
+  border: 1px solid var(--g200);
+  border-radius: 12px;
+  padding: 10px 12px;
+  outline: none;
+  font-size: 13px;
+  background: var(--g50);
+  color: var(--g900);
+}
+
+.joby-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
+.joby-send {
+  border: none;
+  border-radius: 14px;
+  padding: 0 16px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(79, 70, 229, 0.25);
+}
+
+@media (max-width: 640px) {
+  .joby-widget {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .joby-panel {
+    width: calc(100vw - 32px);
+    bottom: 78px;
+  }
+}
 </style>
 </head>
 <body>
@@ -385,6 +1015,370 @@ function ArcGauge({score,color,bg,label,border}){
   );
 }
 
+function CareerGPSTab({profile}) {
+  const [data, setData] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  const fetchGps = React.useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const res = await fetch('/api/career-gps');
+      const json = await res.json();
+      setData(json);
+    } catch (err) {
+      console.error('Career GPS fetch error:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchGps();
+  }, [fetchGps, profile]);
+
+  const hasProfile = Boolean(profile || (data && data.has_profile));
+
+  // Dynamic roles with safe defaults
+  const roles = (data && data.role_paths) || [
+    {name:"Data Analyst / BI Intern", score:86, reason:"Strong fit because Python, SQL, analytics and project work are useful here."},
+    {name:"AI / Machine Learning Intern", score:78, reason:"Good fit because ML projects, Python and model-building skills are relevant."},
+    {name:"Full Stack / Python Developer Intern", score:74, reason:"Good fit if you highlight APIs, Flask, SQLite and automation projects."},
+    {name:"Cloud & DevOps Intern", score:66, reason:"Possible fit, but improve containerization, CI/CD, and AWS deployment."}
+  ];
+
+  const missingSkills = (data && data.skill_gaps) || [
+    {name: "Advanced SQL", priority: "High", reason: "High demand across data analyst listings."},
+    {name: "Power BI", priority: "High", reason: "Required in active corporate analytics roles."},
+    {name: "Docker", priority: "Medium", reason: "Standard requirement for backend microservices."},
+    {name: "AWS Deployment", priority: "Medium", reason: "Valuable for cloud production readiness."}
+  ];
+
+  const plan = (data && data.action_plan) || [
+    "Day 1: Calibrate resume headline and project bullets.",
+    "Day 2: Apply to 5 high-match jobs above 70%.",
+    "Day 3: Practice SQL joins, group by, and window functions.",
+    "Day 4: Prepare JobSearchy project explanation and architecture.",
+    "Day 5: Build one small proof-of-work project covering your top skill gap.",
+    "Day 6: Prepare mock interview answers for your target tracks.",
+    "Day 7: Follow up with recruiters and update your application tracker."
+  ];
+
+  const metrics = (data && data.metrics) || {
+    resume_strength: {label: "Good", description: "Needs stronger measurable impact in project bullets."},
+    job_market_fit: {label: "Strong", description: "Best fit for data, Python, AI automation and analytics roles."},
+    interview_readiness: {label: "Medium", description: "Prepare SQL, Python, ML basics and project explanation."}
+  };
+
+  const recommendedRole = (data && data.recommended_role) || "Data Analyst / AI Automation Intern";
+  const readinessScore = (data && data.readiness_score) || 82;
+  const candidateName = (data && data.candidate_name) || (profile && profile.name) || "You";
+
+  return (
+    <div className="fu">
+      <div className="ph" style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+        <div>
+          <div className="pt">Career GPS</div>
+          <div className="ps">
+            Your live AI career direction map — dynamically computed from your parsed skills and active Indian tech & PMIS job openings.
+          </div>
+        </div>
+        <button
+          onClick={() => fetchGps(true)}
+          disabled={loading || refreshing}
+          style={{
+            display:'flex',alignItems:'center',gap:6,background:'var(--g100)',
+            border:'1px solid var(--g200)',borderRadius:8,padding:'7px 12px',
+            fontSize:12,fontWeight:600,color:'var(--g700)',cursor:'pointer'
+          }}
+        >
+          {refreshing ? 'Recalculating...' : 'Refresh GPS'}
+        </button>
+      </div>
+
+      <div className="career-hero">
+        <div>
+          <div className="career-kicker">{data?.recommended_kicker || "Recommended direction"}</div>
+          <div className="career-title">{recommendedRole}</div>
+          <div className="career-sub">
+            {hasProfile
+              ? `Personalized for ${candidateName} based on active employer demand in JobSearchy.`
+              : "Upload your resume in the Resume tab to make this recommendation 100% personalized."}
+          </div>
+        </div>
+        <div className="career-score">
+          <div className="career-score-num">{readinessScore}%</div>
+          <div className="career-score-label">Career readiness</div>
+        </div>
+      </div>
+
+      <div className="career-grid">
+        <div className="career-card">
+          <div className="career-card-title">Live Role Pathways</div>
+          {roles.map((role) => (
+            <div className="career-role" key={role.name}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10}}>
+                <div>
+                  <div className="career-role-name">{role.name}</div>
+                  <div className="career-role-reason">{role.reason}</div>
+                </div>
+                <div className="career-role-score">{role.score}%</div>
+              </div>
+              <div className="career-bar">
+                <div className="career-bar-fill" style={{width: role.score + "%"}}></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="career-card">
+          <div className="career-card-title">Top Employer Skill Gaps</div>
+          <div className="career-skill-wrap">
+            {missingSkills.map((skill) => (
+              <div className="career-skill" key={skill.name || skill}>
+                <span>{skill.name || skill}</span>
+                <b>{skill.priority || "Medium"}</b>
+              </div>
+            ))}
+          </div>
+
+          <div className="career-warning">
+            Building 1–2 mini proof-of-work projects covering these gaps will increase your interview callback rate significantly.
+          </div>
+        </div>
+      </div>
+
+      <div className="career-grid-3">
+        <div className="career-mini">
+          <div className="career-mini-label">Resume strength</div>
+          <div className="career-mini-value">{metrics.resume_strength?.label || "Good"}</div>
+          <div className="career-mini-text">{metrics.resume_strength?.description || "Solid technical foundation."}</div>
+        </div>
+        <div className="career-mini">
+          <div className="career-mini-label">Job market fit</div>
+          <div className="career-mini-value">{metrics.job_market_fit?.label || "Strong"}</div>
+          <div className="career-mini-text">{metrics.job_market_fit?.description || "Matches current openings."}</div>
+        </div>
+        <div className="career-mini">
+          <div className="career-mini-label">Interview readiness</div>
+          <div className="career-mini-value">{metrics.interview_readiness?.label || "Medium"}</div>
+          <div className="career-mini-text">{metrics.interview_readiness?.description || "Prepare SQL, Python, and project walkthroughs."}</div>
+        </div>
+      </div>
+
+      <div className="career-card" style={{marginTop:16}}>
+        <div className="career-card-title">Personalized 7-Day Action Plan</div>
+        <div className="career-plan">
+          {plan.map((item, index) => {
+            const cleanText = typeof item === 'string' ? item : (item.task || JSON.stringify(item));
+            return (
+              <div className="career-plan-item" key={index}>
+                <div className="career-day">{index + 1}</div>
+                <div>{cleanText}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function JobyChatbot({profile}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [input, setInput] = React.useState("");
+  const [isThinking, setIsThinking] = React.useState(false);
+  const candidateFirstName = (profile && profile.name) ? profile.name.split(' ')[0] : 'there';
+
+  const [messages, setMessages] = React.useState([
+    {
+      sender: "joby",
+      text: `Hi ${candidateFirstName}! I’m Joby, your AI Career Copilot. I can help you choose the best jobs to apply for, improve your resume, and prepare for interviews.`
+    },
+    {
+      sender: "joby",
+      text: "Click any quick prompt below or ask me any question about your profile, match scores, or government PMIS internships."
+    }
+  ]);
+
+  const messagesEndRef = React.useRef(null);
+  React.useEffect(() => {
+    if (isOpen && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isOpen, isThinking]);
+
+  const quickActions = [
+    "Analyze Resume",
+    "Find Matching Jobs",
+    "Show Skill Gaps",
+    "Prepare Interview",
+    "Improve Resume"
+  ];
+
+  function renderFormattedMessage(text) {
+    if (!text) return null;
+    const lines = text.split('\n');
+    return lines.map((line, idx) => {
+      if (!line.trim()) return <div key={idx} style={{height: 6}} />;
+      const parts = line.split(/(\*\*.*?\*\*)/g);
+      return (
+        <div key={idx} style={{marginBottom: 2, lineHeight: '1.45'}}>
+          {parts.map((p, pIdx) => {
+            if (p.startsWith('**') && p.endsWith('**')) {
+              return <strong key={pIdx}>{p.slice(2, -2)}</strong>;
+            }
+            return p;
+          })}
+        </div>
+      );
+    });
+  }
+
+  async function sendMessage(customText) {
+    const finalText = (customText || input).trim();
+    if (!finalText || isThinking) return;
+
+    const userMessage = {
+      sender: "user",
+      text: finalText
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
+    setIsThinking(true);
+
+    try {
+      const historyPayload = messages.slice(-6).map(m => ({
+        sender: m.sender,
+        text: m.text
+      }));
+
+      const res = await fetch('/api/joby-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: finalText,
+          history: historyPayload
+        })
+      });
+
+      const data = await res.json();
+      const replyText = data.reply || "I couldn't process that query right now. Please try again.";
+      setMessages(prev => [...prev, { sender: 'joby', text: replyText, model: data.model }]);
+    } catch (err) {
+      console.error('Joby chat error:', err);
+      setMessages(prev => [...prev, {
+        sender: 'joby',
+        text: "I encountered a network issue reaching the server. Please check your connection and try again."
+      }]);
+    } finally {
+      setIsThinking(false);
+    }
+  }
+
+  return (
+    <div className="joby-widget">
+      {isOpen && (
+        <div className={`joby-panel${isExpanded ? ' expanded' : ''}`}>
+          <div className="joby-header">
+            <div className="joby-avatar-small">J</div>
+            <div>
+              <div className="joby-title">Joby — AI Career Copilot</div>
+              <div className="joby-status">
+                <span className="joby-dot"></span>
+                Online • Ready to help
+              </div>
+            </div>
+            <div className="joby-header-actions">
+              <button
+                type="button"
+                className="joby-icon-btn"
+                onClick={() => setIsExpanded(!isExpanded)}
+                title={isExpanded ? "Collapse window" : "Expand window for comfortable reading"}
+              >
+                {isExpanded ? "🗗" : "⤢"}
+              </button>
+              <button
+                type="button"
+                className="joby-icon-btn"
+                onClick={() => setIsOpen(false)}
+                title="Close chat"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
+          <div className="joby-messages">
+            {messages.map(function (message, index) {
+              return (
+                <div
+                  key={index}
+                  className={
+                    message.sender === "user"
+                      ? "joby-message user-message"
+                      : "joby-message bot-message"
+                  }
+                >
+                  {renderFormattedMessage(message.text)}
+                </div>
+              );
+            })}
+            {isThinking && (
+              <div className="joby-message bot-message joby-thinking">
+                <span>⚡</span> Joby is thinking...
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="joby-actions">
+            {quickActions.map(function (action) {
+              return (
+                <button
+                  key={action}
+                  className="joby-chip"
+                  disabled={isThinking}
+                  onClick={() => sendMessage(action)}
+                >
+                  {action}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="joby-input-row">
+            <input
+              className="joby-input"
+              value={input}
+              disabled={isThinking}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  sendMessage();
+                }
+              }}
+              placeholder="Ask Joby about jobs, resume, skills..."
+            />
+            <button className="joby-send" disabled={isThinking} onClick={() => sendMessage()}>
+              Send
+            </button>
+          </div>
+        </div>
+      )}
+
+      <button className="joby-float" onClick={() => setIsOpen(!isOpen)}>
+        <span className="joby-glow"></span>
+        <span className="joby-face">J</span>
+      </button>
+    </div>
+  );
+}
+
 function JobCard({job,onSave,idx}){
   const [saved,setSaved]=useState(job.is_saved);
   const [saving,setSaving]=useState(false);
@@ -400,6 +1394,29 @@ function JobCard({job,onSave,idx}){
   const scoreBg=score>=65?'#f0fdf4':score>=45?'#eff6ff':score>=30?'#fffbeb':'#fef2f2';
   const scoreBorder=score>=65?'#86efac':score>=45?'#bfdbfe':score>=30?'#fcd34d':'#fca5a5';
   const scoreLabel=score>=65?'Strong match':score>=45?'Good match':score>=30?'Partial match':'Low match';
+  const actionRec = score >= 75
+    ? {label:'Apply Now', bg:'#f0fdf4', color:'#15803d', border:'#bbf7d0'}
+    : score >= 45
+      ? {label:'Improve First', bg:'#fffbeb', color:'#b45309', border:'#fde68a'}
+      : {label:'Ignore', bg:'#fef2f2', color:'#b91c1c', border:'#fecaca'};
+
+  const sourceText = String(job.source || '').toLowerCase();
+  const knownSource = /linkedin|internshala|naukri|unstop|devfolio|wellfound|hackerearth|govt|government|mygov|niti/.test(sourceText);
+
+  const trust = /linkedin|company|career|govt|government|mygov|niti/.test(sourceText)
+    ? {label:'High Trust', bg:'#f0fdf4', color:'#15803d', border:'#bbf7d0'}
+    : knownSource
+      ? {label:'Medium Trust', bg:'#eff6ff', color:'#1d4ed8', border:'#bfdbfe'}
+      : {label:'Check Source', bg:'#fef2f2', color:'#b91c1c', border:'#fecaca'};
+
+  const warnings = [];
+  if (!job.company || String(job.company).trim().length < 2) warnings.push('Company missing');
+  if (!job.url) warnings.push('No apply link');
+  if (!job.stipend && !job.salary) warnings.push('Pay not mentioned');
+  if (!job.description || String(job.description).length < 80) warnings.push('Short description');
+  if (!knownSource) warnings.push('Unknown source');
+
+  const showWarning = warnings.length >= 2;
   const companyInitial=(job.company||'?')[0].toUpperCase();
   // Random but consistent color for company avatar
   const avatarColors=['#4338ca','#0369a1','#15803d','#b45309','#7e22ce','#be185d','#0f766e'];
@@ -428,6 +1445,21 @@ function JobCard({job,onSave,idx}){
               <span style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:5,
                 border:`1px solid ${jtype.border}`,background:jtype.bg,color:jtype.color,
                 flexShrink:0}}>{jtype.label}</span>
+                              <span className="action-rec-badge" style={{
+                background: actionRec.bg,
+                color: actionRec.color,
+                border: `1px solid ${actionRec.border}`
+              }}>
+                {actionRec.label}
+              </span>
+
+              <span className="trust-badge" style={{
+                background: trust.bg,
+                color: trust.color,
+                border: `1px solid ${trust.border}`
+              }}>
+                {trust.label}
+              </span>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
               <span style={{fontSize:12,fontWeight:600,color:'var(--g600)'}}>{job.company}</span>
@@ -462,7 +1494,11 @@ function JobCard({job,onSave,idx}){
             )}
           </div>
         )}
-
+        {showWarning && (
+          <div className="job-warning-box">
+            <b>⚠ Check before applying:</b> {warnings.slice(0,3).join(' • ')}
+          </div>
+        )}
         {/* Footer */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
           <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
@@ -704,8 +1740,21 @@ function ResumeTab({profile,setProfile,showToast,onGoToJobs}){
         </div>
       )}
       {!profile&&(
-        <div style={{background:'var(--i50)',border:'1.5px solid var(--i100)',borderRadius:12,padding:'14px 18px',fontSize:13,color:'var(--i700)',display:'flex',alignItems:'center',gap:10}}>
-          <span>Upload your resume above to get started — we'll extract your skills automatically</span>
+        <div style={{background:'var(--w)',border:'1px dashed var(--g300)',borderRadius:14,padding:'16px 20px',fontSize:13,display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,flexWrap:'wrap',boxShadow:'var(--sh-sm)'}}>
+          <div>
+            <div style={{fontWeight:700,color:'var(--g900)',marginBottom:2}}>⚡ Explore instantly without uploading</div>
+            <div style={{fontSize:12,color:'var(--g500)'}}>Load a verified sample profile (Rushikesh Kedar · 17+ skills) to test match scoring & Joby AI in 1 click</div>
+          </div>
+          <button
+            type="button"
+            className="btn-demo-profile"
+            onClick={()=>{
+              setProfile(DEMO_PROFILE);
+              showToast("⚡ Demo Profile loaded (Rushikesh Kedar)", "success");
+            }}
+          >
+            ⚡ Load Demo Profile
+          </button>
         </div>
       )}
 
@@ -989,8 +2038,10 @@ function DeadlinePage(){
 
 function DeadlineTracker({fullPage=false}){
   const [hackathons,setHackathons]=React.useState([]);
+  const [hideExpired,setHideExpired]=React.useState(true);
+
   React.useEffect(()=>{
-    api.get('/api/jobs?limit=500').then(d=>{
+    api.get('/api/jobs?limit=500&hide_expired=0').then(d=>{
       if(!Array.isArray(d))return;
       const hacks=d.filter(j=>{
         const t=(j.title||'').toLowerCase();
@@ -1007,6 +2058,21 @@ function DeadlineTracker({fullPage=false}){
         ];
         let deadline=null;
         for(const p of dPatterns){const m=rawDesc.match(p);if(m){deadline=m[1].trim();break;}}
+
+        let isExpired = Boolean(j.is_expired);
+        let daysLeft = null;
+        if(deadline){
+          const parsed=new Date(deadline);
+          if(!isNaN(parsed.getTime())){
+            const diff=parsed.getTime()-Date.now();
+            daysLeft=Math.ceil(diff/(1000*60*60*24));
+            if(daysLeft<0) isExpired=true;
+          }
+        }
+        if(/registration closed|registrations closed|applications closed|no longer accepting|competition ended|hackathon ended|event concluded/i.test(desc) || /registration closed/i.test(j.title||'')){
+          isExpired = true;
+        }
+
         const mode=desc.includes('offline')||desc.includes('in-person')||desc.includes('on-site')?'Offline':
                    desc.includes('hybrid')?'Hybrid':'Online';
         const prizeMatch=(j.stipend||rawDesc).match(/[₹$][\d,]+|[\d,]+\s*(?:lakh|thousand|k)\s*(?:prize|pool|reward|cash)/i);
@@ -1015,45 +2081,61 @@ function DeadlineTracker({fullPage=false}){
         const hasStipend=desc.includes('stipend')||desc.includes('paid intern');
         const scraped=j.scraped_at?new Date(j.scraped_at):null;
         const daysAgo=scraped?Math.floor((Date.now()-scraped.getTime())/(1000*60*60*24)):99;
-        const urgency=daysAgo<=1?'new':daysAgo<=4?'recent':'open';
-        return{...j,deadline,mode,prize,hasPPO,hasStipend,urgency,daysAgo};
-      }).sort((a,b)=>a.daysAgo-b.daysAgo).slice(0,fullPage?50:12);
+        const urgency=isExpired?'closed':(daysLeft!==null&&daysLeft<=3)?'urgent':daysAgo<=2?'new':daysAgo<=6?'recent':'open';
+        return{...j,deadline,mode,prize,hasPPO,hasStipend,urgency,daysAgo,isExpired,daysLeft};
+      }).sort((a,b)=>{
+        if(a.isExpired!==b.isExpired) return a.isExpired ? 1 : -1;
+        return a.daysAgo-b.daysAgo;
+      });
       setHackathons(withMeta);
     });
   },[]);
 
   const urgencyStyle={
-    new:   {bg:'#fef2f2',color:'#b91c1c',border:'#fca5a5',dot:'#ef4444',label:'Just Added'},
-    recent:{bg:'#fffbeb',color:'#b45309',border:'#fde68a',dot:'#f59e0b',label:'Recent'},
-    open:  {bg:'#f0fdf4',color:'#15803d',border:'#bbf7d0',dot:'#22c55e',label:'Open'},
+    urgent:{bg:'rgba(239,68,68,0.12)',color:'#dc2626',border:'rgba(239,68,68,0.3)',dot:'#ef4444',label:'Closes Soon'},
+    new:   {bg:'rgba(99,102,241,0.12)',color:'var(--i600)',border:'var(--i200)',dot:'var(--i500)',label:'Just Added'},
+    recent:{bg:'rgba(245,158,11,0.12)',color:'#d97706',border:'#fde68a',dot:'#f59e0b',label:'Active'},
+    open:  {bg:'rgba(16,185,129,0.12)',color:'#059669',border:'#a7f3d0',dot:'#10b981',label:'Open'},
+    closed:{bg:'rgba(100,116,139,0.12)',color:'var(--g500)',border:'var(--g300)',dot:'var(--g400)',label:'Closed'},
   };
   const modeStyle={
-    Online: {bg:'#eff6ff',color:'#1d4ed8',border:'#bfdbfe'},
-    Offline:{bg:'#faf5ff',color:'#7c3aed',border:'#e9d5ff'},
-    Hybrid: {bg:'#f0fdf4',color:'#15803d',border:'#bbf7d0'},
+    Online: {bg:'rgba(59,130,246,0.1)',color:'#2563eb',border:'rgba(59,130,246,0.25)'},
+    Offline:{bg:'rgba(168,85,247,0.1)',color:'#9333ea',border:'rgba(168,85,247,0.25)'},
+    Hybrid: {bg:'rgba(16,185,129,0.1)',color:'#059669',border:'rgba(16,185,129,0.25)'},
   };
 
-  if(!hackathons.length)return(
-    <div style={{textAlign:'center',padding:'48px 0',color:'#94a3b8'}}>
+  const displayedHacks = hideExpired ? hackathons.filter(h => !h.isExpired) : hackathons;
+
+  if(!displayedHacks.length)return(
+    <div style={{textAlign:'center',padding:'48px 0',color:'var(--g400)'}}>
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" style={{margin:'0 auto 10px',display:'block',opacity:.35}}><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-      <div style={{fontWeight:600,fontSize:14,marginBottom:4}}>No hackathons found yet</div>
-      <div style={{fontSize:12}}>Run the pipeline to discover open competitions</div>
+      <div style={{fontWeight:600,fontSize:14,marginBottom:4}}>No open hackathons found</div>
+      <div style={{fontSize:12}}>Try unchecking "Hide expired/closed" or run the pipeline to discover new events</div>
+      {hideExpired && hackathons.some(h=>h.isExpired) && (
+        <button className="btn btn-s" onClick={()=>setHideExpired(false)} style={{marginTop:12,fontSize:12}}>Show all including closed</button>
+      )}
     </div>
   );
 
   return(
     <div style={{animation:'fadeUp .4s ease'}}>
-      {!fullPage&&(
-        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
-          <div style={{width:34,height:34,borderRadius:10,background:'#faf5ff',display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:16,flexWrap:'wrap'}}>
+        {!fullPage&&(
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <div style={{width:34,height:34,borderRadius:10,background:'var(--i50)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--i600)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div>
+              <div style={{fontFamily:'Bricolage Grotesque',fontSize:15,fontWeight:800,color:'var(--g900)'}}>Hackathons</div>
+              <div style={{fontSize:11,color:'var(--g400)'}}>{displayedHacks.length} open competitions found</div>
+            </div>
           </div>
-          <div>
-            <div style={{fontFamily:'Bricolage Grotesque',fontSize:15,fontWeight:800,color:'var(--g900)'}}>Hackathons</div>
-            <div style={{fontSize:11,color:'var(--g400)'}}>{hackathons.length} open competitions found</div>
-          </div>
-        </div>
-      )}
+        )}
+        <label style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:600,color:'var(--g700)',cursor:'pointer',marginLeft:'auto',background:'var(--w)',padding:'5px 12px',borderRadius:999,border:'1px solid var(--g200)'}}>
+          <input type="checkbox" checked={hideExpired} onChange={e=>setHideExpired(e.target.checked)} style={{cursor:'pointer'}}/>
+          <span>Hide expired / closed ({hackathons.filter(h=>h.isExpired).length} closed)</span>
+        </label>
+      </div>
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
         {hackathons.map((h,i)=>{
           const us=urgencyStyle[h.urgency];
@@ -1103,7 +2185,7 @@ function DeadlineTracker({fullPage=false}){
 
 // ── Resume Gap Analysis ──────────────────────────────────────────────────────
 
-function GapAnalysisPage(){
+function GapAnalysisPage({profile}){
   return(
     <div className="fu">
       <div className="ph">
@@ -1125,7 +2207,7 @@ function GapAnalysisPage(){
           </div>
         </div>
       </div>
-      <GapAnalysis profile={null} showFull={true}/>
+      <GapAnalysis profile={profile} showFull={true}/>
     </div>
   );
 }
@@ -1860,9 +2942,66 @@ const ICONS={
   saved:<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 2h10a1 1 0 011 1v11l-6-3.5L2 14V3a1 1 0 011-1z"/></svg>,
   analytics:<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="8" width="3" height="7" rx="1"/><rect x="6" y="4" width="3" height="11" rx="1"/><rect x="11" y="1" width="3" height="14" rx="1"/></svg>,
   tracker:<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 3h12M2 8h8M2 13h5"/><circle cx="13" cy="11" r="3"/><path d="M11.5 11l1 1 1.5-1.5"/></svg>,
+  career:<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+  <path d="M8 1.5l1.8 4.2 4.5.4-3.4 3 1 4.4L8 11.2 4.1 13.5l1-4.4-3.4-3 4.5-.4L8 1.5z"/>
+  </svg>,
   gap:<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 2v4M8 10v4M2 8h4M10 8h4"/><circle cx="8" cy="8" r="2"/></svg>,
   deadlines:<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg>,
 };
+
+const DEMO_PROFILE = {
+  name: "Rushikesh Kedar",
+  email: "rushikesh@example.com",
+  title: "Full Stack & AI Systems Engineer",
+  college: "SPPU (Pune University)",
+  current_course: "B.Tech Computer Engineering",
+  year_of_study: "4",
+  cgpa: "8.7",
+  skills: {
+    technical: [
+      "Python", "FastAPI", "React", "Docker", "SQL", "Machine Learning",
+      "Git", "REST APIs", "PostgreSQL", "Flask", "AsyncIO", "Pandas",
+      "Scikit-Learn", "Tailwind CSS", "TypeScript", "Next.js", "Redis"
+    ],
+    tools: ["Docker", "Git", "GitHub Actions", "VS Code", "Postman", "Linux", "Redis", "Turso", "Vercel"],
+    soft: ["Problem Solving", "System Design", "Technical Communication", "Agile Collaboration"]
+  },
+  projects: [
+    { title: "JobSearchy AI Engine", desc: "Automated multi-portal job aggregator with semantic skill matching and Career GPS" },
+    { title: "Distributed Web Scraper", desc: "High-throughput asynchronous scraping pipeline with smart rate-limiting" }
+  ],
+  certifications: ["Google Cloud Certified", "DeepLearning.AI Machine Learning Specialization"],
+  experience_years: 1.5,
+  parsed_at: new Date().toISOString()
+};
+
+function ThemeSwitcher({theme, onSelectTheme}){
+  return(
+    <div className="theme-toggle-group" title="Theme Selector (1-click)">
+      <button
+        type="button"
+        className={`theme-pill ${theme==='classic'?'active':''}`}
+        onClick={()=>onSelectTheme('classic')}
+      >
+        Classic
+      </button>
+      <button
+        type="button"
+        className={`theme-pill ${theme==='obsidian-dark'?'active':''}`}
+        onClick={()=>onSelectTheme('obsidian-dark')}
+      >
+        🌙 Obsidian
+      </button>
+      <button
+        type="button"
+        className={`theme-pill ${theme==='porcelain-light'?'active':''}`}
+        onClick={()=>onSelectTheme('porcelain-light')}
+      >
+        ☀️ Porcelain
+      </button>
+    </div>
+  );
+}
 
 function App(){
   const [view,setView]=useState('hero');
@@ -1875,6 +3014,27 @@ function App(){
   const [popupSent,setPopupSent]=useState(false);
   const [popupSending,setPopupSending]=useState(false);
   const [showFlashCards,setShowFlashCards]=useState(false);
+
+  const [theme,setThemeState]=useState(()=>{
+    try{
+      return localStorage.getItem('jobsearchy_theme')||'obsidian-dark';
+    }catch(e){
+      return 'obsidian-dark';
+    }
+  });
+
+  const changeTheme=(newTheme)=>{
+    setThemeState(newTheme);
+    try{
+      localStorage.setItem('jobsearchy_theme',newTheme);
+    }catch(e){}
+    document.documentElement.setAttribute('data-theme',newTheme);
+  };
+
+  useEffect(()=>{
+    document.documentElement.setAttribute('data-theme',theme);
+  },[theme]);
+
   const showToast=(msg,type='info')=>setToast({msg,type,id:Date.now()});
 
   // Don't auto-load last person's profile — privacy
@@ -1895,6 +3055,7 @@ function App(){
     {id:'saved',label:'Saved',icon:ICONS.saved},
     {id:'analytics',label:'Analytics',icon:ICONS.analytics},
     {id:'tracker',label:'My Applications',icon:ICONS.tracker},
+    {id:'career',label:'Career GPS',icon:ICONS.career},
     {id:'deadlines',label:'Hackathons',icon:ICONS.deadlines},
     {id:'gapanalysis',label:'Skill Gaps',icon:ICONS.gap},
   ];
@@ -1909,9 +3070,34 @@ function App(){
     return(
       <>
         <nav className="nav">
-          <div className="logo"><em>Job</em>Searchy</div>
+          <div className="logo" onClick={()=>setView('hero')}><em>Job</em>Searchy</div>
           <div style={{display:'flex',gap:10,alignItems:'center'}}>
-            {profile&&<div className="nav-pill"><div className="nav-av">{initial}</div>{displayName}</div>}
+            <ThemeSwitcher theme={theme} onSelectTheme={changeTheme}/>
+            {profile ? (
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <div className="nav-pill"><div className="nav-av">{initial}</div>{displayName}</div>
+                <button
+                  type="button"
+                  className="btn btn-s"
+                  onClick={()=>{setProfile(null);showToast('Profile cleared','info');}}
+                  style={{fontSize:11,padding:'4px 8px',borderRadius:999}}
+                  title="Clear profile"
+                >✕</button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn-demo-profile"
+                onClick={()=>{
+                  setProfile(DEMO_PROFILE);
+                  showToast("⚡ Demo Profile loaded (Rushikesh Kedar)", "success");
+                  setView('app');
+                }}
+                title="Load verified candidate profile"
+              >
+                ⚡ Demo Profile
+              </button>
+            )}
             <button className="btn btn-p" onClick={()=>setView('app')}>Open Dashboard<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
           </div>
         </nav>
@@ -1925,14 +3111,39 @@ function App(){
     <>
       <nav className="nav">
         <div className="logo" onClick={()=>setView('hero')}><em>Job</em>Searchy</div>
-        {profile?(
-          <div className="nav-pill">
-            <div className="nav-av">{initial}</div>
-            <span style={{fontSize:13,fontWeight:500,color:'var(--g700)'}}>{profile.name}</span>
-          </div>
-        ):(
-          <button className="btn btn-p" onClick={()=>setTab('resume')} style={{fontSize:12,padding:'7px 14px'}}>Upload Resume<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
-        )}
+        <div style={{display:'flex',gap:10,alignItems:'center'}}>
+          <ThemeSwitcher theme={theme} onSelectTheme={changeTheme}/>
+          {profile ? (
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <div className="nav-pill">
+                <div className="nav-av">{initial}</div>
+                <span style={{fontSize:13,fontWeight:500,color:'var(--g700)'}}>{profile.name}</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-s"
+                onClick={()=>{setProfile(null);showToast('Profile cleared','info');}}
+                style={{fontSize:11,padding:'4px 8px',borderRadius:999}}
+                title="Clear profile"
+              >✕</button>
+            </div>
+          ) : (
+            <div style={{display:'flex',gap:8,alignItems:'center'}}>
+              <button
+                type="button"
+                className="btn-demo-profile"
+                onClick={()=>{
+                  setProfile(DEMO_PROFILE);
+                  showToast("⚡ Demo Profile loaded (Rushikesh Kedar)", "success");
+                }}
+                title="Load verified candidate profile"
+              >
+                ⚡ Demo Profile
+              </button>
+              <button className="btn btn-p" onClick={()=>setTab('resume')} style={{fontSize:12,padding:'7px 14px'}}>Upload Resume<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px",marginLeft:4}}><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+            </div>
+          )}
+        </div>
       </nav>
       <div className="app">
         <div className="sb">
@@ -1970,8 +3181,9 @@ function App(){
             {tab==='saved'&&<JobsTab showToast={showToast} mode="saved"/>}
             {tab==='analytics'&&<AnalyticsTab/>}
             {tab==='tracker'&&<AppTrackerTab showToast={showToast}/>}
+            {tab==='career'&&<CareerGPSTab profile={profile}/>}
             {tab==='deadlines'&&<DeadlinePage/>}
-            {tab==='gapanalysis'&&<GapAnalysisPage/>}
+            {tab==='gapanalysis'&&<GapAnalysisPage profile={profile}/>}
           </div>
         </div>
         {showPanel&&<PipelinePanel showToast={showToast}
@@ -2001,8 +3213,8 @@ function App(){
       <SkillFlashCards skills={profile?.skills?.technical||[]} visible={showFlashCards} onDismiss={()=>setShowFlashCards(false)}/>
       {/* Email notification popup */}
       {showEmailPopup&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,0.5)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',animation:'fadeIn .2s ease'}}>
-          <div style={{background:'#fff',borderRadius:20,padding:'32px',width:420,boxShadow:'0 20px 60px rgba(0,0,0,.2)',position:'relative',animation:'fadeUp .3s cubic-bezier(.16,1,.3,1)'}}>
+        <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,0.65)',backdropFilter:'blur(4px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',animation:'fadeIn .2s ease'}}>
+          <div style={{background:'var(--w)',border:'1px solid var(--g200)',borderRadius:20,padding:'32px',width:420,boxShadow:'var(--sh-xl)',position:'relative',animation:'fadeUp .3s cubic-bezier(.16,1,.3,1)'}}>
             <button onClick={()=>{setShowEmailPopup(false);setTab('top');}} style={{position:'absolute',top:14,right:14,background:'var(--g100)',border:'none',borderRadius:'50%',width:28,height:28,cursor:'pointer',fontSize:14,color:'var(--g500)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",verticalAlign:"-2px"}}><path d="M18 6L6 18M6 6l12 12"/></svg></button>
             {popupSent?(
               <div style={{textAlign:'center',padding:'16px 0'}}>
@@ -2064,8 +3276,10 @@ function App(){
               </>
             )}
           </div>
+          
         </div>
       )}
+      <JobyChatbot profile={profile} />
     </>
   );
 }

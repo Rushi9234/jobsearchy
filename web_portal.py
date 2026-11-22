@@ -3,15 +3,34 @@ import sys
 import json
 import logging
 import threading
+import time
 import sqlite3
+import re
+from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+try:
+    from dotenv import load_dotenv
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "searchy.env")
+    if os.path.exists(_env_path):
+        load_dotenv(_env_path)
+    else:
+        load_dotenv()
+except Exception:
+    pass
+
 from utils.resume_parser import parse_resume
+try:
+    from utils.resume_llm_parser import parse_resume_hybrid
+except ImportError:
+    parse_resume_hybrid = parse_resume
 from utils.matcher import batch_score, batch_score_and_coverage, coverage_score, explain_score as matcher_explain
 from utils.filters import filter_jobs
+from utils.career_gps import evaluate_career_gps
+from utils.joby_copilot import generate_joby_reply
 from database.db import (
     init_db, get_all_jobs, get_top_jobs, get_saved_jobs,
     toggle_saved, get_stats, insert_job, is_seen, mark_seen,
@@ -50,6 +69,8 @@ scrape_hackerearth = _safe_import('scrape_hackerearth', 'scrapers.hackerearth_sc
 scrape_wellfound   = _safe_import('scrape_wellfound',   'scrapers.wellfound_scraper')
 scrape_naukri      = _safe_import('scrape_naukri',      'scrapers.naukri_scraper')
 scrape_govt        = _safe_import('scrape_govt_jobs',   'scrapers.govt_scraper')
+scrape_pmis        = _safe_import('scrape_pmis_jobs',   'scrapers.pmis_scraper')
+scrape_open_jobs   = _safe_import('scrape_open_jobs',   'scrapers.open_jobs_scraper')
 from notifiers.email_notifier import send_daily_digest
 
 app = Flask(__name__, static_folder="static", template_folder="static")
@@ -171,6 +192,13 @@ def index():
     return send_from_directory("static", "index.html")
 
 
+@app.route("/<path:filename>")
+def serve_static(filename):
+    if not filename.startswith("api/") and os.path.exists(os.path.join("static", filename)):
+        return send_from_directory("static", filename)
+    return send_from_directory("static", "index.html")
+
+
 # ── Upload resume ─────────────────────────────────────────────────────────────
 @app.route("/api/upload-resume", methods=["POST"])
 def upload_resume():
@@ -190,7 +218,7 @@ def upload_resume():
     file.save(filepath)
 
     try:
-        profile = parse_resume(filepath)
+        profile = parse_resume_hybrid(filepath)
 
         # Flatten skills to list if parser returned dict
         skills = profile.get("skills", [])
@@ -228,13 +256,80 @@ def get_rescore_status():
     return jsonify(rescore_status)
 
 
+def _get_active_profile() -> dict:
+    if os.path.exists("profile.json"):
+        try:
+            with open("profile.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to read profile.json: {e}")
+            return {}
+    return {}
+
+
 # ── Get profile ───────────────────────────────────────────────────────────────
 @app.route("/api/profile", methods=["GET"])
 def get_profile():
-    if not os.path.exists("profile.json"):
+    profile = _get_active_profile()
+    if not profile:
         return jsonify({"error": "No profile found"}), 404
-    with open("profile.json") as f:
-        return jsonify(json.load(f))
+    return jsonify(profile)
+
+
+# ── Dynamic Career GPS ────────────────────────────────────────────────────────
+@app.route("/api/career-gps", methods=["GET"])
+def get_career_gps():
+    """
+    Returns dynamic, personalized career trajectory data, role paths,
+    skill gaps from active jobs in DB, and a 7-day action plan.
+    """
+    profile = _get_active_profile()
+    try:
+        jobs = get_all_jobs(limit=300)
+    except Exception as e:
+        logger.warning(f"[CareerGPS] Failed to load jobs from DB: {e}")
+        jobs = []
+
+    data = evaluate_career_gps(profile=profile, jobs=jobs)
+    return jsonify(data)
+
+
+# ── Joby AI Career Copilot ───────────────────────────────────────────────────
+@app.route("/api/joby-chat", methods=["POST"])
+def joby_chat():
+    """
+    Joby AI Career Copilot endpoint.
+    Accepts: { message: str, history?: list }
+    Returns: { reply: str, model: str, status: 'success' }
+    """
+    body = request.get_json(silent=True) or {}
+    message = body.get("message", "").strip()
+    history = body.get("history", [])
+
+    if not message:
+        return jsonify({"error": "Empty message", "status": "error"}), 400
+
+    profile = _get_active_profile()
+    try:
+        top_jobs = get_top_jobs(limit=5, min_score=40.0)
+    except Exception:
+        top_jobs = []
+
+    try:
+        jobs = get_all_jobs(limit=100)
+    except Exception:
+        jobs = []
+
+    career_gps = evaluate_career_gps(profile=profile, jobs=jobs)
+    response = generate_joby_reply(
+        message=message,
+        history=history,
+        profile=profile,
+        top_jobs=top_jobs,
+        career_gps=career_gps
+    )
+    return jsonify(response)
+
 
 
 # ── Smart keyword builder for personalized scraping ──────────────────────────
@@ -343,6 +438,8 @@ def run_pipeline_thread(days=7):
             ("HackerEarth", scrape_hackerearth, keywords,  "hackathon"),
             ("Naukri",      scrape_naukri,      keywords,  "job"),
             ("Govt",        lambda **kw: scrape_govt(), None, "internship"),
+            ("PMIS",        lambda **kw: scrape_pmis(keywords=kw.get("keywords")), keywords, "internship"),
+            ("OpenJobs",    lambda **kw: scrape_open_jobs(keywords=kw.get("keywords")), keywords, "job"),
         ]
 
         all_jobs = []
@@ -446,37 +543,120 @@ def get_pipeline_status():
     return jsonify(pipeline_status)
 
 
+def is_listing_expired(j: dict) -> bool:
+    """Returns True if the hackathon or internship is closed / past deadline."""
+    title = (j.get("title") or "").lower()
+    desc = (j.get("description") or "").lower()
+    combined = f"{title} {desc}"
+
+    closed_signals = [
+        "registration closed", "registrations closed", "applications closed",
+        "no longer accepting applications", "application deadline passed",
+        "competition ended", "hackathon ended", "event concluded", "submission closed"
+    ]
+    if any(sig in combined for sig in closed_signals):
+        return True
+
+    patterns = [
+        r"(?:last date|deadline|closing date|apply by|register by|ends?)[:\s]+(\d{1,2}[\s\-\/](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-\/,]*\d{2,4})",
+        r"(?:last date|deadline)[:\s]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})",
+    ]
+    for pat in patterns:
+        m = re.search(pat, j.get("description") or "", re.IGNORECASE)
+        if m:
+            date_str = m.group(1).strip()
+            for fmt in ("%d %b %Y", "%d %B %Y", "%d-%b-%Y", "%d/%m/%Y", "%d-%m-%Y"):
+                try:
+                    dt = datetime.strptime(date_str, fmt)
+                    if dt.year < 2000:
+                        dt = dt.replace(year=dt.year + 2000)
+                    if dt < datetime.now():
+                        return True
+                except Exception:
+                    pass
+    return False
+
+
+def classify_job(j: dict) -> str:
+    """
+    Deterministically classifies a listing into 'hackathon', 'govt', 'internship', or 'job'.
+    Eliminates false positives where private companies were tagged as govt, and full-time roles as internship.
+    """
+    src = (j.get("source") or "").lower()
+    title = (j.get("title") or "").lower()
+    company = (j.get("company") or "").lower()
+    url = (j.get("url") or "").lower()
+    stipend = (j.get("stipend") or "").lower()
+    duration = (j.get("duration") or "").lower()
+    tags = " ".join(j.get("tags", []) if isinstance(j.get("tags"), list) else []).lower()
+    combined = f"{title} {company} {src} {tags}"
+
+    # 1. HACKATHONS & COMPETITIONS
+    if any(s in src for s in ["unstop", "devfolio", "hackerearth"]) or \
+       any(k in combined for k in ["hackathon", "challenge", "competition", "datathon", "ideathon", "sprint", "buildathon", "ctf"]):
+        return "hackathon"
+
+    # 2. REAL GOVERNMENT / PMIS
+    govt_entities = [
+        "pm internship scheme", "pminternship", "pmis", "ministry of",
+        "niti aayog", "isro", "drdo", "aicte", "csir", "nabard", "nic.in",
+        "meity", "rbi", "sebi", "bhel", "ongc", "iocl", "ntpc", "sail", "hal",
+        "national career service", "upsc", "ssc", "government of india", "govt of"
+    ]
+    is_govt_source = any(s in src for s in ["pmis", "niti_aayog", "mygov", "aicte"]) or \
+                     any(d in url for d in ["pminternship.mca.gov.in", "aicte-india.org", "niti.gov.in", "gov.in", "nic.in"])
+    is_govt_company = any(k in company for k in govt_entities)
+    is_govt_title = any(k in title for k in govt_entities)
+    is_private_co = any(p in company for p in ["pvt ltd", "private limited", "ltd.", "inc.", "llc", "technologies", "consultancy"])
+
+    if (is_govt_source or is_govt_company or is_govt_title) and not is_private_co:
+        return "govt"
+
+    # 3. INTERNSHIP vs FULL-TIME JOB
+    intern_keywords = ["intern", "internship", "trainee", "apprentice", "fellow", "fellowship"]
+    full_time_keywords = ["full time", "full-time", "lead", "senior", "principal", "staff engineer", "head of", "director"]
+
+    has_intern_title = any(k in title for k in intern_keywords)
+    has_full_time = any(k in title for k in full_time_keywords) or any(k in duration for k in ["full time", "full-time", "permanent"])
+    has_monthly_stipend = "/month" in stipend or "/mo" in stipend or "stipend" in stipend or "unpaid" in stipend
+    has_annual_lpa = "lpa" in stipend or "per annum" in stipend or "yr" in stipend
+
+    if has_full_time and not has_intern_title:
+        return "job"
+    if has_intern_title:
+        return "internship"
+    if has_monthly_stipend and not has_annual_lpa:
+        return "internship"
+    if has_annual_lpa:
+        return "job"
+    if "month" in duration:
+        return "internship"
+
+    return "job"
+
+
 # ── Jobs API ──────────────────────────────────────────────────────────────────
 @app.route("/api/jobs", methods=["GET"])
 def get_jobs():
-    limit     = request.args.get("limit",     100, type=int)
-    min_score = request.args.get("min_score", 0,   type=int)
-    source    = request.args.get("source",    "")
-    search    = request.args.get("search",    "")
+    limit        = request.args.get("limit",        100, type=int)
+    min_score    = request.args.get("min_score",    0,   type=int)
+    source       = request.args.get("source",       "")
+    search       = request.args.get("search",       "")
+    hide_expired = request.args.get("hide_expired", "1") == "1"
 
     jobs = get_all_jobs(limit=limit)
 
+    classified_jobs = []
     for j in jobs:
         if "match_score" in j and "score" not in j:
             j["score"] = j["match_score"]
-        if "job_type" not in j or not j.get("job_type"):
-            src   = (j.get("source",  "") or "").lower()
-            title = (j.get("title",   "") or "").lower()
-            tags  = " ".join(j.get("tags", []) if isinstance(j.get("tags"), list) else [])
-            combined = title + " " + src + " " + tags.lower()
-            if any(s in src for s in ["unstop", "devfolio", "hackerearth"]) or \
-               any(k in combined for k in ["hackathon", "challenge", "competition", "datathon", "ideathon", "sprint"]):
-                j["job_type"] = "hackathon"
-            elif any(s in src for s in ["govt_internshala", "govt_portal", "govt", "linkedin_govt",
-                                         "niti_aayog", "mygov"]) or \
-                 any(k in title for k in ["government", "niti aayog", "isro", "drdo", "aicte",
-                                           "csir", "nabard", "nic", "meity", "dst", "rbi", "sebi"]):
-                j["job_type"] = "govt"
-            elif "internship" in title or "intern" in title or "internshala" in src or \
-                 any(k in title for k in ["trainee", "apprentice"]):
-                j["job_type"] = "internship"
-            else:
-                j["job_type"] = "job"
+        j["job_type"] = classify_job(j)
+        j["is_expired"] = is_listing_expired(j)
+        if hide_expired and j["is_expired"]:
+            continue
+        classified_jobs.append(j)
+
+    jobs = classified_jobs
 
     job_type = request.args.get("job_type", "")
     if job_type and job_type != "all":
@@ -596,7 +776,9 @@ def send_digest():
         if result:
             return jsonify({"success": True, "message": f"Email sent to {to_email}!"})
         else:
-            return jsonify({"error": "Email failed — check MAIL_FROM/MAIL_PASS in Render environment variables."}), 500
+            return jsonify({
+                "error": "Email delivery failed. Render free tier blocks outbound SMTP ports (465/587). Please set RESEND_API_KEY in environment variables for instant HTTPS delivery, or verify MAIL_FROM and MAIL_PASS."
+            }), 500
     except Exception as e:
         logger.exception("[send-digest] failed")
         return jsonify({"error": str(e)}), 500
@@ -927,7 +1109,39 @@ def interaction_stats():
         return jsonify({"error": str(e)}), 500
 
 
+# ── In-App Scheduled Automation (4x Daily Pipeline for Production) ────────────
+_scheduler_started = False
+
+def _start_background_scheduler():
+    global _scheduler_started
+    if _scheduler_started:
+        return
+    _scheduler_started = True
+
+    def _loop():
+        time.sleep(60)
+        while True:
+            try:
+                logger.info("[AutoScheduler] Triggering periodic scrape pipeline...")
+                from main import run_pipeline
+                run_pipeline(send_telegram=True, send_email=True, digest_only=True)
+            except Exception as e:
+                logger.warning(f"[AutoScheduler] Periodic pipeline run skipped: {e}")
+            time.sleep(21600)
+
+    t = threading.Thread(target=_loop, daemon=True, name="JobSearchyAutoScheduler")
+    t.start()
+    logger.info("[AutoScheduler] In-app 4x daily automation thread initialized.")
+
+_start_background_scheduler()
+
+
 if __name__ == "__main__":
-    print("🚀 JobSearchy running at http://localhost:5000")
-    print("📄 Accepts: PDF, DOCX, DOC")
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+    print("[JobSearchy] Server starting at http://localhost:5000")
+    print("[JobSearchy] Supported Resume Formats: PDF, DOCX, DOC")
     app.run(debug=True, host="0.0.0.0", port=5000)

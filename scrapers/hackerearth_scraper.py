@@ -2,6 +2,7 @@
 HackerEarth scraper — hackathons and challenges
 Uses the public challenges page + JSON endpoint fallback.
 """
+import hashlib
 import requests
 import time
 from datetime import datetime
@@ -58,7 +59,7 @@ def scrape_hackerearth(keywords: Optional[list] = None) -> list[dict]:
                 href = link["href"] if link else ""
                 job_url = href if href.startswith("http") else f"https://www.hackerearth.com{href}"
 
-                uid = abs(hash(title + job_url))
+                uid = hashlib.md5((title + job_url).encode()).hexdigest()[:12]
                 if uid in seen:
                     continue
                 seen.add(uid)
@@ -102,7 +103,8 @@ def scrape_hackerearth(keywords: Optional[list] = None) -> list[dict]:
                             title = item.get("title", item.get("name", ""))
                             if not title:
                                 continue
-                            uid = str(item.get("id", abs(hash(title))))
+                            raw_id = str(item.get("id") or "")
+                            uid = raw_id if raw_id else hashlib.md5(title.encode()).hexdigest()[:12]
                             if uid in seen:
                                 continue
                             seen.add(uid)
@@ -127,27 +129,8 @@ def scrape_hackerearth(keywords: Optional[list] = None) -> list[dict]:
         except Exception as e:
             print(f"[HackerEarth] API error: {e}")
 
-    # Strategy 3: Static fallback with known active hackathons
     if not jobs:
-        fallback_events = [
-            ("HackerEarth Machine Learning Challenge", "https://www.hackerearth.com/challenges/hackathon/", "ML"),
-            ("HackerEarth Data Science Sprint", "https://www.hackerearth.com/challenges/hackathon/", "Data Science"),
-            ("HackerEarth AI Hackathon", "https://www.hackerearth.com/challenges/hackathon/", "AI"),
-        ]
-        for title, url, tag in fallback_events:
-            jobs.append({
-                "job_id": f"he_{abs(hash(title))}",
-                "source": "hackerearth",
-                "title": title,
-                "company": "HackerEarth",
-                "location": "Online",
-                "duration": "",
-                "stipend": "Prizes available",
-                "url": url,
-                "tags": [tag.lower()],
-                "description": f"{title} on HackerEarth. Compete with developers worldwide.",
-                "scraped_at": datetime.now().isoformat(),
-            })
+        print("[HackerEarth] No active hackathons found on this scan.")
 
     print(f"[HackerEarth] Scraped {len(jobs)} listings")
     return jobs

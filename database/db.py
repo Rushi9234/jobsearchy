@@ -4,26 +4,56 @@ SQLite3 wrapper for jobs, seen_jobs, notifications, and scrape_logs.
 All other modules interact with the DB through this interface only.
 """
 
+import os
 import sqlite3
 import json
 import logging
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Generator
+from typing import Optional, Generator, Any
 
 DB_PATH = Path(__file__).resolve().parent.parent / "searchy.db"
 logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def get_conn(db_path: Optional[str] = None) -> Generator[sqlite3.Connection, None, None]:
-    """Thread-safe connection context manager with WAL mode."""
+def get_conn(db_path: Optional[str] = None) -> Generator[Any, None, None]:
+    """
+    Thread-safe connection context manager.
+    If TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are set, connects to Turso Cloud (LibSQL)
+    so data survives container restarts on Render. Otherwise falls back to local searchy.db.
+    """
+    turso_url = os.getenv("TURSO_DATABASE_URL")
+    turso_token = os.getenv("TURSO_AUTH_TOKEN")
+
+    if turso_url and not db_path:
+        try:
+            import libsql_experimental as libsql
+            conn = libsql.connect(database=turso_url, auth_token=turso_token)
+            conn.row_factory = sqlite3.Row
+            try:
+                yield conn
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.close()
+            return
+        except ImportError:
+            logger.debug("[DB] libsql_experimental not installed. Using local SQLite.")
+        except Exception as e:
+            logger.warning("[DB] Failed to connect to Turso cloud: %s. Falling back to local SQLite.", e)
+
     path = db_path or str(DB_PATH)
     conn = sqlite3.connect(path, timeout=15, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+    except Exception:
+        pass
     try:
         yield conn
         conn.commit()
@@ -205,11 +235,13 @@ def get_saved_jobs(db_path: Optional[str] = None) -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def mark_notified(job_ids: list[int], db_path: Optional[str] = None) -> None:
+def mark_notified(job_ids: list, db_path: Optional[str] = None) -> None:
+    if not job_ids:
+        return
     with get_conn(db_path) as conn:
         conn.executemany(
-            "UPDATE jobs SET is_notified=1 WHERE id=?",
-            [(jid,) for jid in job_ids],
+            "UPDATE jobs SET is_notified=1 WHERE id=? OR job_id=?",
+            [(jid, str(jid)) for jid in job_ids],
         )
 
 

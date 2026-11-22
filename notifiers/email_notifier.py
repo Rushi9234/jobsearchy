@@ -1,4 +1,4 @@
-﻿"""
+"""
 email_notifier.py — JobSearchy Email Notifier
 Sends a professional HTML digest email via Gmail SMTP.
 Completely free — only needs a Gmail app password.
@@ -8,6 +8,8 @@ import smtplib
 import logging
 import os
 import json
+import html
+import requests
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
@@ -31,9 +33,10 @@ def _get_config() -> dict:
                     os.environ.setdefault(k.strip(), v.strip())
 
     cfg = {
-        "sender_email":    os.getenv("MAIL_FROM"),
-        "sender_password": os.getenv("MAIL_PASS"),
-        "recipient_email": os.getenv("MAIL_TO"),
+        "resend_api_key":  os.getenv("RESEND_API_KEY", "").strip(),
+        "sender_email":    os.getenv("MAIL_FROM") or os.getenv("EMAIL_SENDER"),
+        "sender_password": os.getenv("MAIL_PASS") or os.getenv("EMAIL_PASSWORD"),
+        "recipient_email": os.getenv("MAIL_TO") or os.getenv("EMAIL_RECIPIENT"),
         "smtp_host":       os.getenv("SMTP_HOST", "smtp.gmail.com"),
         "smtp_port":       int(os.getenv("SMTP_PORT", "465")),
     }
@@ -65,17 +68,18 @@ def _job_card(job: dict) -> str:
     color    = _score_color(score)
     label    = _score_label(score)
     tags     = _get_tags(job)
-    stipend  = job.get("stipend") or "—"
-    duration = job.get("duration") or "—"
-    location = job.get("location") or "India"
-    title    = job.get("title", "Opportunity")
-    company  = job.get("company", "Company")
-    url      = job.get("url", "#")
+    stipend  = html.escape(str(job.get("stipend") or "—"))
+    duration = html.escape(str(job.get("duration") or "—"))
+    location = html.escape(str(job.get("location") or "India"))
+    title    = html.escape(str(job.get("title", "Opportunity")))
+    company  = html.escape(str(job.get("company", "Company")))
+    raw_url  = str(job.get("url", "#"))
+    url      = html.escape(raw_url) if raw_url.startswith("http") else "#"
 
     tags_html = "".join(
         f'<span style="display:inline-block;background:#f0f9ff;color:#0369a1;'
         f'border:1px solid #bae6fd;border-radius:20px;padding:2px 10px;'
-        f'font-size:11px;margin:2px 1px;font-weight:500;">{t}</span>'
+        f'font-size:11px;margin:2px 1px;font-weight:500;">{html.escape(t)}</span>'
         for t in tags
     )
 
@@ -102,7 +106,7 @@ def _job_card(job: dict) -> str:
                 <div style="font-size:13px;color:#475569;margin-bottom:8px;">
                    <strong>{company}</strong>
                   &nbsp;&nbsp; {location}
-                  &nbsp;&nbsp;â± {duration}
+                  &nbsp;&nbsp; {duration}
                   &nbsp;&nbsp; {stipend}
                 </div>
                 <div style="margin-bottom:10px;">{tags_html}</div>
@@ -454,7 +458,43 @@ def send_daily_digest(
 
     first_name = user_name.split()[0] if user_name and user_name != "there" else "there"
     top_score  = max((j.get("match_score",0) for j in jobs), default=0)
-    subject    = f"JobSearchy - Hey {first_name} - {len(jobs)} opportunities found! Top score: {int(top_score)}/100"
+    subject    = f"JobSearchy — Hey {first_name} — {len(jobs)} opportunities found! Top score: {int(top_score)}/100"
+
+    # Strategy 1: Resend HTTP REST API (Port 443 — always open on Render and Cloud)
+    if cfg.get("resend_api_key"):
+        try:
+            from_field = "JobSearchy <onboarding@resend.dev>"
+            if cfg.get("sender_email") and "@" in cfg["sender_email"] and "<" in cfg["sender_email"]:
+                from_field = cfg["sender_email"]
+
+            payload = {
+                "from": from_field,
+                "to": [cfg["recipient_email"]],
+                "subject": subject,
+                "html": _build_html(jobs, user_name, cfg["recipient_email"], all_skills or []),
+                "text": _build_plain(jobs, user_name),
+            }
+            resp = requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {cfg['resend_api_key']}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=10,
+            )
+            if resp.status_code in (200, 201):
+                logger.info("[Email via Resend HTTPS] Successfully sent to %s (%d jobs)", cfg["recipient_email"], len(jobs))
+                return True
+            else:
+                logger.error("[Email via Resend] API returned HTTP %d: %s", resp.status_code, resp.text)
+        except Exception as e:
+            logger.error("[Email via Resend] Request error: %s", e)
+
+    # Strategy 2: Direct SMTP (Timeout=8 prevents Render socket hangs)
+    if not all([cfg.get("sender_email"), cfg.get("sender_password"), cfg.get("recipient_email")]):
+        logger.error("[Email] Missing credentials. Set RESEND_API_KEY (recommended for Render) or MAIL_FROM/MAIL_PASS in environment.")
+        return False
 
     try:
         import ssl
@@ -469,14 +509,23 @@ def send_daily_digest(
         msg.attach(MIMEText(_build_html(jobs, user_name, cfg["recipient_email"], all_skills or []), "html"))
 
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"], context=context) as server:
-            server.login(cfg["sender_email"], cfg["sender_password"])
-            server.sendmail(cfg["sender_email"], cfg["recipient_email"], msg.as_string())
+        if cfg["smtp_port"] == 587:
+            with smtplib.SMTP(cfg["smtp_host"], 587, timeout=8) as server:
+                server.starttls(context=context)
+                server.login(cfg["sender_email"], cfg["sender_password"])
+                server.sendmail(cfg["sender_email"], cfg["recipient_email"], msg.as_string())
+        else:
+            with smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"], context=context, timeout=8) as server:
+                server.login(cfg["sender_email"], cfg["sender_password"])
+                server.sendmail(cfg["sender_email"], cfg["recipient_email"], msg.as_string())
 
-        logger.info("[Email] Sent to %s (%d jobs)", cfg["recipient_email"], len(jobs))
+        logger.info("[Email via SMTP] Sent to %s (%d jobs)", cfg["recipient_email"], len(jobs))
         return True
     except smtplib.SMTPAuthenticationError:
         logger.error("[Email] Auth failed — check MAIL_FROM and MAIL_PASS (use Gmail App Password)")
+        return False
+    except (TimeoutError, smtplib.SMTPConnectError, OSError) as e:
+        logger.error("[Email] Connection timed out / blocked: %s. On Render free tier, outbound SMTP ports 465/587 are blocked. Please set RESEND_API_KEY.", e)
         return False
     except Exception as e:
         logger.error("[Email] Error: %s", e)

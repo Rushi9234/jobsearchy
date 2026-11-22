@@ -14,6 +14,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+    datefmt="%H:%M:%S",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(ROOT / "searchy.log", encoding="utf-8"),
+    ],
+)
+logger = logging.getLogger("searchy.main")
+
 from database.db import init_db, insert_job, mark_seen, is_seen, get_unnotified_jobs, \
     mark_notified, log_scrape, get_stats
 from utils.resume_parser import load_profile, parse_resume, save_profile
@@ -37,20 +49,10 @@ scrape_hackerearth = _safe_import('scrape_hackerearth', 'scrapers.hackerearth_sc
 scrape_wellfound   = _safe_import('scrape_wellfound',   'scrapers.wellfound_scraper')
 scrape_naukri      = _safe_import('scrape_naukri',      'scrapers.naukri_scraper')
 scrape_govt        = _safe_import('scrape_govt_jobs',   'scrapers.govt_scraper')
+scrape_pmis        = _safe_import('scrape_pmis_jobs',   'scrapers.pmis_scraper')
+scrape_open_jobs   = _safe_import('scrape_open_jobs',   'scrapers.open_jobs_scraper')
 from notifiers.telegram_notifier import send_job_alerts, send_daily_digest as tg_digest
 from notifiers.email_notifier import send_daily_digest as email_digest
-
-# ── Logging ───────────────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
-    datefmt="%H:%M:%S",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(ROOT / "searchy.log", encoding="utf-8"),
-    ],
-)
-logger = logging.getLogger("searchy.main")
 
 
 # ── Config ─────────────────────────────────────────────────────────────────────
@@ -108,6 +110,8 @@ def run_pipeline(
         ("HackerEarth", scrape_hackerearth, SCRAPE_KEYWORDS, "hackathon"),
         ("Naukri",      scrape_naukri,      SCRAPE_KEYWORDS, "job"),
         ("Govt",        lambda **kw: scrape_govt(), None, "internship"),
+        ("PMIS",        lambda **kw: scrape_pmis(keywords=kw.get("keywords")), SCRAPE_KEYWORDS, "internship"),
+        ("OpenJobs",    lambda **kw: scrape_open_jobs(keywords=kw.get("keywords")), SCRAPE_KEYWORDS, "job"),
     ]
 
     def _run(name, fn, kw, jtype):
@@ -186,7 +190,7 @@ def run_pipeline(
         tg_digest(digest_jobs[:10])
 
     # Mark all alerted jobs as notified
-    notified_ids = [j.get("id") for j in high_score_jobs if j.get("id")]
+    notified_ids = [j.get("id") or j.get("job_id") for j in high_score_jobs if (j.get("id") or j.get("job_id"))]
     if notified_ids:
         mark_notified(notified_ids)
 

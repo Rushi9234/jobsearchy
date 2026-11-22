@@ -1,14 +1,22 @@
 """
 Wellfound (AngelList) scraper — startup jobs via public API
 """
+import hashlib
 import requests
 import time
 from datetime import datetime
 from typing import Optional
 
+# INACTIVE / DEPRECATED: Preserved in codebase for future adapter updates.
+# Currently inactive because public /api/jobs returns 404.
+ENABLED = False
+
 
 def scrape_wellfound(keywords: Optional[list] = None, pages: int = 2) -> list[dict]:
-    """Scrape Wellfound startup jobs via their public search API."""
+    """Scrape Wellfound startup jobs via their public search API (currently inactive)."""
+    if not ENABLED:
+        return []
+
     jobs = []
     seen = set()
 
@@ -37,7 +45,7 @@ def scrape_wellfound(keywords: Optional[list] = None, pages: int = 2) -> list[di
                     data = resp.json()
                     items = data.get("jobs", data.get("results", []))
                     for item in items[:15]:
-                        uid = str(item.get("id", abs(hash(str(item)))))
+                        uid = str(item.get("id") or hashlib.md5(str(item).encode()).hexdigest()[:12])
                         if uid in seen: continue
                         seen.add(uid)
                         title = item.get("title", item.get("role", ""))
@@ -76,7 +84,7 @@ def scrape_wellfound(keywords: Optional[list] = None, pages: int = 2) -> list[di
                 try:
                     data2 = resp2.json()
                     for item in data2.get("jobs", [])[:10]:
-                        uid = str(item.get("id", abs(hash(str(item)))))
+                        uid = str(item.get("id") or hashlib.md5(str(item).encode()).hexdigest()[:12])
                         if uid in seen: continue
                         seen.add(uid)
                         startup = item.get("startup", {})
@@ -103,6 +111,8 @@ def scrape_wellfound(keywords: Optional[list] = None, pages: int = 2) -> list[di
 
     print(f"[Wellfound] Scraped {len(jobs)} listings")
     return jobs
+
+scrape = scrape_wellfound
 
 
 if __name__ == "__main__":

@@ -9,11 +9,23 @@ searchy.log
 uploads/
 *.pdf
 
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
 # Python cache
 __pycache__/
 *.pyc
 *.pyo
 .sixth/
+
+# Temporary and backup files
+*.bak
+*_backup_*
+*.tmp
+*.swp
 
 # OS
 .DS_Store

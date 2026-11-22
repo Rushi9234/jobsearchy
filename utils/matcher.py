@@ -138,7 +138,14 @@ def _clean(text: str) -> str:
     if not text:
         return ""
     text = text.lower()
+    text = text.replace("c/c++", "c++")
+    # Protect dots and slashes inside technical tokens (e.g. node.js, ci/cd, b.tech)
+    text = re.sub(r"(?<=[a-z0-9])\.(?=[a-z0-9])", "zzdotzz", text)
+    text = re.sub(r"(?<=[a-z0-9])/(?=[a-z0-9])", "zzslashzz", text)
+    # Strip non-alphanumeric except +, #, -
     text = re.sub(r"[^a-z0-9\s\+\#\-]", " ", text)
+    # Restore protected technical dots and slashes
+    text = text.replace("zzdotzz", ".").replace("zzslashzz", "/")
     return re.sub(r"\s+", " ", text).strip()
 
 

@@ -183,60 +183,201 @@ def extract_text_from_pdf_compat(pdf_path: str) -> str:
 # ── Personal info extractors ─────────────────────────────────────────────────
 
 def extract_college(text: str) -> Optional[str]:
-    lines = text.splitlines()
-    college_keywords = [
-        "university", "college", "institute", "iit", "nit", "bits",
-        "mit", "vitb", "vit", "lpu", "srm", "amity", "manipal",
-        "engineering", "technology", "trinity",
+    """
+    Extract candidate college/university.
+    Strictly avoids matching student descriptions ('Computer Engineering student...'),
+    project lines, or bare degrees ('Bachelor of Engineering').
+    """
+    COLLEGE_KEYWORDS = [
+        "university", "college", "institute", "academy", "vidyapith",
+        "polytechnic", "school of",
+        "iit", "nit", "bits", "iiit", "vit", "coep", "pict", "vjti",
+        "dtu", "nsut", "mit", "lpu", "srm", "amity", "manipal", "symbiosis", "thapar"
     ]
-    skip_patterns = [
-        r"research|analytics|econometrics|quantitative|data science",
-        r"python|java|react|sql|cgpa|score|marks|percent",
-        r"^\s*[\·\|•\-]",
+
+    DISQUALIFY_PATTERNS = [
+        r"^\s*[\·\|•\-\*○▪]",                       # bullet points
+        r"\b(student|undergraduate|pursuing|fresher|intern)\b", # self-descriptions
+        r"\b(hands-on|experience|developed|built|engineered|designed|trained|tested)\b", # action verbs
+        r"\b(bachelor of|master of|b\.?tech in|b\.?e\.? in|diploma in)\b",             # degrees (not colleges)
+        r"\b(python|react|flask|fastapi|sql|rest|api|dataset|model|docker|git)\b",     # tech words
+        r"\b(higher secondary|senior secondary|class\s*(?:xii|x|12|10)|ssc|hsc)\b",     # secondary school
     ]
-    for line in lines:
+
+    # Step 1: Look inside Education section first
+    edu_lines = _find_section(
+        text,
+        ["education", "academic qualification", "academic background", "academics"],
+        ["experience", "internship", "project", "projects", "skill", "certif", "award", "activities"],
+    )
+
+    for line in edu_lines:
         l = line.strip()
-        if not l or len(l) < 8 or len(l) > 120:
+        if not l or len(l) < 5 or len(l) > 120:
             continue
         ll = l.lower()
-        if not any(kw in ll for kw in college_keywords):
+        if any(re.search(p, ll) for p in DISQUALIFY_PATTERNS):
             continue
-        if any(re.search(p, ll) for p in skip_patterns):
+        has_college_kw = any(re.search(r"\b" + re.escape(kw) + r"\b", ll) for kw in COLLEGE_KEYWORDS)
+        has_combined = bool(re.search(r"\b(?:college|institute|school|faculty)\s+of\b", ll))
+        if has_college_kw or has_combined:
+            cleaned = re.sub(r"[\s\|\–\-]*\b(?:20\d{2}|cgpa|gpa|percentage)[\s\d\.\–\-\:]*", "", l, flags=re.IGNORECASE).strip()
+            if len(cleaned) >= 5:
+                return cleaned[:120]
+
+    # Step 2: Fallback to searching entire text if not found in section
+    for line in text.splitlines():
+        l = line.strip()
+        if not l or len(l) < 5 or len(l) > 120:
             continue
-        if not re.search(r"[A-Z][a-z]{2,}", l):
+        ll = l.lower()
+        if any(re.search(p, ll) for p in DISQUALIFY_PATTERNS):
             continue
-        return l[:120]
+        has_college_kw = any(re.search(r"\b" + re.escape(kw) + r"\b", ll) for kw in COLLEGE_KEYWORDS)
+        has_combined = bool(re.search(r"\b(?:college|institute|school|faculty)\s+of\b", ll))
+        if (has_college_kw or has_combined) and re.search(r"[A-Z][a-z]{2,}", l):
+            cleaned = re.sub(r"[\s\|\–\-]*\b(?:20\d{2}|cgpa|gpa|percentage)[\s\d\.\–\-\:]*", "", l, flags=re.IGNORECASE).strip()
+            if len(cleaned) >= 5:
+                return cleaned[:120]
+
     return None
 
 
 def extract_current_course(text: str) -> Optional[str]:
-    patterns = [
-        r"(b\.?tech|b\.?e|bachelor of technology|bachelor of engineering)[^\n]*?(computer science|cs|it|information technology|electronics|electrical|mechanical|civil|entc|telecommunication|data science|ai|artificial intelligence|machine learning)[^\n]*",
-        r"(b\.?e\.?)[^\n]*?(electronics|telecommunication|entc|electrical|mechanical)[^\n]*",
-        r"(m\.?tech|master of technology|mba|b\.?sc|m\.?sc)[^\n]*?(computer|data|software|electronics|physics|mathematics|ai|machine learning)[^\n]*",
-        r"(b\.?tech|b\.?e|m\.?tech|mba|b\.?sc|m\.?sc|phd)[^\n]{0,60}",
+    """
+    Extracts the degree/course name using strict word boundaries to avoid
+    matching words like 'Bear' as 'B.E'.
+    Prioritizes the Education section.
+    """
+    DEGREE_PATTERNS = [
+        r"\b(b\.?\s*tech|b\.?\s*e\.?|bachelor of technology|bachelor of engineering)\s*(?:in|[-–—]|,\s*)?\s*([a-zA-Z\s&]{2,40})",
+        r"\b(bachelor of engineering|bachelor of technology|b\.?\s*tech|b\.?\s*e\.?)\s*\(([a-zA-Z\s&]{2,40})\)",
+        r"\b(m\.?\s*tech|m\.?\s*e\.?|master of technology|mca|bca|mba|b\.?\s*sc|m\.?\s*sc|ph\.?d)\s*(?:in|[-–—]|,\s*)?\s*([a-zA-Z\s&]{2,40})?",
+        r"\b(bachelor of engineering|bachelor of technology|bachelor of science|master of computer applications)\b",
     ]
-    for pat in patterns:
-        m = re.search(pat, text, re.IGNORECASE)
-        if m:
-            result = m.group(0).strip()
-            if len(result) > 5:
-                return result[:100]
+
+    DISQUALIFY = [
+        r"bear|bull|market|regime|volatility",  # Financial/ML project text
+        r"developed|engineered|built|trained",   # Project bullets
+    ]
+
+    edu_lines = _find_section(
+        text,
+        ["education", "academic", "academics"],
+        ["experience", "internship", "project", "projects", "skill", "certif"],
+    )
+    search_texts = ["\n".join(edu_lines), text] if edu_lines else [text]
+
+    for search_text in search_texts:
+        for pat in DEGREE_PATTERNS:
+            for match in re.finditer(pat, search_text, re.IGNORECASE):
+                full_match = match.group(0).strip()
+                if any(re.search(dq, full_match, re.IGNORECASE) for dq in DISQUALIFY):
+                    continue
+                cleaned = re.sub(r"[\s\|\–\-]*\b(?:cgpa|gpa|score|percentage|20\d{2})[\s\d\.\–\-\:\/]*", "", full_match, flags=re.IGNORECASE).strip()
+                if len(cleaned) > 4:
+                    return cleaned[:100]
+
     return None
 
 
 def extract_name(text: str) -> str:
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or len(line) < 3:
+    """
+    Extract candidate name with strict filtering to prevent capturing bold
+    headlines, roles (e.g. 'Full Stack Developer'), sections, or project text.
+    Handles initials with periods (e.g. 'Rushikesh B. Kedar').
+    """
+    DISQUALIFIED_WORDS = {
+        # Roles / professional titles
+        "developer", "engineer", "scientist", "analyst", "intern", "internship",
+        "designer", "architect", "programmer", "consultant", "specialist",
+        "manager", "lead", "founder", "student", "undergraduate", "graduate",
+        "fresher", "enthusiast", "practitioner", "coder", "freelancer",
+        "candidate", "applicant", "associate", "officer", "technician",
+        "director", "administrator", "fellow", "researcher", "mentor", "tutor",
+        # Resume section headings
+        "summary", "objective", "experience", "education", "skills", "projects",
+        "certifications", "publications", "achievements", "awards", "contact",
+        "activities", "interests", "qualifications", "profile", "curriculum",
+        "vitae", "resume", "declaration", "details", "background", "training",
+        "coursework", "highlights", "competencies", "history", "professional",
+        "academic", "personal", "information",
+        # Tech keywords / domains
+        "python", "java", "javascript", "typescript", "c++", "react", "node",
+        "sql", "aws", "docker", "stack", "frontend", "backend", "machine",
+        "learning", "artificial", "intelligence", "data", "science", "analytics",
+        "devops", "software", "web", "android", "ios", "cloud", "systems",
+        "network", "fullstack", "aiml", "nlp", "vision",
+        # Buzzwords & filler words
+        "motivated", "passionate", "seeking", "driven", "dedicated", "skilled",
+        "proficient", "creative", "experienced", "building", "scalable",
+        "solutions", "results", "portfolio", "page",
+        # Degree / education keywords
+        "btech", "bachelor", "master", "mtech", "diploma", "phd", "cgpa", "gpa",
+        "school", "college", "university", "institute", "engineering", "technology",
+        # Common cities/addresses to avoid grabbing address lines
+        "india", "pune", "mumbai", "bangalore", "delhi", "hyderabad", "chennai",
+        "maharashtra", "road", "street", "nagar",
+    }
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return "Unknown"
+
+    header_lines = lines[:25]
+    candidates = []
+
+    for idx, raw_line in enumerate(header_lines):
+        cleaned = re.sub(r"^[\s•\-*○▪#|]+", "", raw_line).strip()
+        cleaned = re.sub(r"[\s•\-*○▪#|]+$", "", cleaned).strip()
+
+        if not cleaned or len(cleaned) < 3 or len(cleaned) > 50:
             continue
-        if re.search(r"[@://\d\|]", line):
+
+        if re.search(r"[@://\d|\\]", cleaned):
             continue
-        if any(kw in line.lower() for kw in ["resume","curriculum","cv","profile"]):
+        if re.search(r"\b(github|linkedin|portfolio|gmail|yahoo|outlook|http)\b", cleaned, re.IGNORECASE):
             continue
-        words = line.split()
-        if 2 <= len(words) <= 5 and all(re.match(r"^[A-Za-z][a-zA-Z'-]*$", w) for w in words):
-            return line.title()
+
+        words = cleaned.split()
+        if not (2 <= len(words) <= 4):
+            continue
+
+        lower_words = [w.lower().rstrip(".,;:") for w in words]
+        if any(w in DISQUALIFIED_WORDS for w in lower_words):
+            continue
+
+        valid_words = True
+        for w in words:
+            if not re.match(r"^[A-Za-z][a-zA-Z'\-]*\.?$", w):
+                valid_words = False
+                break
+        if not valid_words:
+            continue
+
+        score = 100 - (idx * 3)
+        if all(w.istitle() or w.isupper() for w in words):
+            score += 20
+
+        # Adjacent contact bonus
+        for offset in [-1, 1, 2]:
+            adj_idx = idx + offset
+            if 0 <= adj_idx < len(header_lines):
+                if re.search(r"[@\d]{5,}", header_lines[adj_idx]):
+                    score += 30
+                    break
+
+        candidates.append((score, cleaned))
+
+    if candidates:
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        best_name = candidates[0][1]
+        formatted = " ".join(
+            w.upper() if len(w.rstrip(".")) == 1 else w.capitalize()
+            for w in best_name.split()
+        )
+        return formatted
+
     return "Unknown"
 
 
@@ -341,40 +482,71 @@ def _extract_section_blocks(text: str, start_keywords: list, stop_keywords: list
 # ── Structured extractors with skill inference ──────────────────────────────
 
 def extract_education(text: str) -> list:
+    """
+    Extract structured education entries by pairing institutions and degrees,
+    filtering out project/experience text or certification lines.
+    """
     edu_lines = _find_section(
         text,
-        ["education","academic","qualification"],
-        ["experience","project","skill","certif","award","extra","activit","interest","volunteer"],
+        ["education", "academic qualification", "academic background", "academics"],
+        ["experience", "internship", "project", "projects", "skill", "certif", "award", "activities", "interest", "volunteer"],
     )
     if not edu_lines:
         for line in text.splitlines():
             if any(kw in line.lower() for kw in EDUCATION_KEYWORDS):
                 edu_lines.append(line.strip())
 
-    entries, seen = [], set()
-    not_edu_patterns = [
-        r'\[github\]', r'github\.com', r'http', r'analysed', r'analyzed',
-        r'developed', r'built', r'created', r'led', r'predicted', r'implemented',
-        r'restaurant|market|membership|customer|upgrade|propensity',
-        r'\(cid:', r'locality|localities|statistical testing',
-    ]
-    for line in edu_lines:
-        if not line or line in seen:
+    INST_KEYWORDS = ["university", "college", "institute", "academy", "school", "vidyapith", "polytechnic"]
+    DEG_REGEX = r"\b(b\.?\s*tech|b\.?\s*e\.?|bachelor|m\.?\s*tech|m\.?\s*e\.?|master|mba|bca|mca|b\.?\s*sc|m\.?\s*sc|ph\.?d|diploma|hsc|ssc|10th|12th|higher secondary|secondary school)\b"
+
+    entries = []
+    pending_deg = None
+    pending_inst = None
+    pending_yr = None
+
+    for raw in edu_lines:
+        line = raw.strip()
+        if not line or len(line) < 4:
             continue
-        if any(re.search(p, line, re.IGNORECASE) for p in not_edu_patterns):
+        # Skip certifications or work artifacts
+        if re.search(r"\b(cisco|ccna|coursera|udemy|aws certified|developed|built|created|led|analysed)\b", line, re.IGNORECASE):
             continue
-        seen.add(line)
-        deg = re.search(
-            r"(b\.?tech|b\.?e|bachelor|m\.?tech|master|mba|b\.?sc|m\.?sc|phd|diploma)",
-            line, re.IGNORECASE
-        )
-        yr = re.search(r"\b(20\d{2})\b", line)
-        if deg or any(kw in line.lower() for kw in ["university","college","institute","school"]):
+
+        deg_match = re.search(DEG_REGEX, line, re.IGNORECASE)
+        inst_match = any(kw in line.lower() for kw in INST_KEYWORDS) or any(re.search(r"\b" + kw + r"\b", line.lower()) for kw in ["iit", "nit", "bits", "iiit", "vit", "coep", "pict", "vjti", "mit"])
+        yr_match = re.search(r"\b(20\d{2})\b", line)
+        yr = int(yr_match.group(0)) if yr_match else None
+
+        if deg_match and inst_match:
             entries.append({
-                "institution": line[:120],
-                "degree":      deg.group(0).upper() if deg else None,
-                "year":        int(yr.group(0)) if yr else None,
+                "institution": re.sub(r"[\s\|\–\-]*\b(?:20\d{2}|cgpa|gpa|score|percentage)[\s\d\.\–\-\:\/]*", "", line, flags=re.IGNORECASE).strip()[:120],
+                "degree": deg_match.group(0).upper(),
+                "year": yr,
             })
+        elif deg_match and not inst_match:
+            clean_deg = re.sub(r"[\s\|\–\-]*\b(?:cgpa|gpa|score|percentage)[\s\d\.\–\-\:\/]*", "", line, flags=re.IGNORECASE).strip()
+            if pending_inst and not pending_deg:
+                entries.append({"institution": pending_inst[:120], "degree": clean_deg[:100], "year": pending_yr or yr})
+                pending_inst, pending_deg, pending_yr = None, None, None
+            else:
+                if pending_deg or pending_inst:
+                    entries.append({"institution": (pending_inst or clean_deg)[:120], "degree": pending_deg or clean_deg, "year": pending_yr})
+                pending_deg = clean_deg
+                pending_yr = yr
+        elif inst_match and not deg_match:
+            clean_inst = re.sub(r"[\s\|\–\-]*\b(?:20\d{2}|cgpa|gpa|score|percentage)[\s\d\.\–\-\:\/]*", "", line, flags=re.IGNORECASE).strip()
+            if pending_deg and not pending_inst:
+                entries.append({"institution": clean_inst[:120], "degree": pending_deg[:100], "year": pending_yr or yr})
+                pending_inst, pending_deg, pending_yr = None, None, None
+            else:
+                if pending_deg or pending_inst:
+                    entries.append({"institution": (pending_inst or clean_inst)[:120], "degree": pending_deg, "year": pending_yr})
+                pending_inst = clean_inst
+                pending_yr = yr
+
+    if pending_deg or pending_inst:
+        entries.append({"institution": (pending_inst or pending_deg)[:120], "degree": pending_deg, "year": pending_yr})
+
     return entries[:4]
 
 
@@ -605,7 +777,7 @@ def parse_resume(file_path: str) -> dict:
 
     return {
         "source_file":     str(Path(file_path).resolve()),
-        "parsed_at":       datetime.datetime.utcnow().isoformat() + "Z",
+        "parsed_at":       datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "name":            name,
         "email":           email,
         "phone":           phone,
