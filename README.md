@@ -171,6 +171,26 @@ python -m unittest discover tests -v
 
 ---
 
+## 📈 System Evolution & How We Improved
+
+JobSearchy underwent a major performance and resilience refactor to solve real-world cloud deployment challenges. Full engineering notes, logs, and benchmark tables are recorded in [SYSTEM_ARCHITECTURE_AND_EVOLUTION.md](SYSTEM_ARCHITECTURE_AND_EVOLUTION.md).
+
+### Summary of Major Upgrades:
+* **☁️ Ephemeral Data Wipes &rarr; Turso Cloud LibSQL:**
+  * *Earlier:* Local SQLite `searchy.db` wiped on every Render container reboot.
+  * *Improved:* Migrated all **5,712 listings** and **5,711 seen jobs** to Turso Cloud (`aws-us-west-2`) with automatic local fallback if offline.
+* **⚡ 9s LLM Timeout Lag &rarr; 1.5s Multi-Model Groq Rotation:**
+  * *Earlier:* Hardcoded single models suffered 404 deprecations and 6-second timeouts.
+  * *Improved:* Intelligent failover chain across active high-speed models (`qwen/qwen3.8-27b`, `openai/gpt-oss-20b`, `gemini-2.5-flash`) with sub-5ms rate limit switching.
+* **🏎️ In-Memory Python Filtering &rarr; SQL B-Tree Indexing:**
+  * *Earlier:* Iterating over 3,000+ string dates in Python loops took **5,142 ms** on Render.
+  * *Improved:* Created `idx_jobs_scraped_at` and SQL-level date filtering (`get_jobs_filtered()`), slashing query time to **57.6 ms** (an **8.3x to 89x speedup**).
+* **🏛️ Strict Government Verification:**
+  * *Earlier:* Commercial tech internships leaked into government categories, with dead links to older portals.
+  * *Improved:* Added official PMIS schemes, updated live ISRO/DRDO endpoints, and integrated official IIT Kanpur SURGE and IIT Roorkee SPARK research fellowships.
+
+---
+
 ## 🔑 Environment Variables Reference
 
 Create a `searchy.env` file in the root directory:

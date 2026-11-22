@@ -15,8 +15,13 @@ from typing import Dict, List, Any, Optional
 logger = logging.getLogger(__name__)
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
-GEMINI_MODEL = "gemini-2.0-flash"
+GROQ_MODELS = [
+    "qwen/qwen3.8-27b",
+    "openai/gpt-oss-20b",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+]
+GEMINI_MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"]
 
 
 def _build_system_prompt(profile: Dict[str, Any], top_jobs: List[Dict[str, Any]], career_gps: Dict[str, Any]) -> str:
@@ -59,48 +64,67 @@ BEHAVIOR GUIDELINES:
 
 
 def _chat_with_groq(messages: List[Dict[str, str]], api_key: str) -> Optional[str]:
-    """Chat completion via Groq API (Llama-3.3-70B)."""
-    try:
-        import requests
+    """Chat completion via Groq API across active models."""
+    import requests
+
+    headers = {
+        "Authorization": f"Bearer {api_key.strip()}",
+        "Content-Type": "application/json",
+    }
+
+    for model in GROQ_MODELS:
         payload = {
-            "model": GROQ_MODEL,
+            "model": model,
             "messages": messages,
             "temperature": 0.5,
             "max_tokens": 800,
         }
-        headers = {
-            "Authorization": f"Bearer {api_key.strip()}",
-            "Content-Type": "application/json",
-        }
-        resp = requests.post(GROQ_ENDPOINT, headers=headers, json=payload, timeout=7)
-        if resp.status_code == 200:
-            data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
-        else:
-            logger.warning("[Joby Groq] API status %d: %s", resp.status_code, resp.text[:200])
-            return None
-    except Exception as e:
-        logger.warning("[Joby Groq] Request failed: %s", e)
-        return None
+        try:
+            resp = requests.post(GROQ_ENDPOINT, headers=headers, json=payload, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                logger.info(f"[Joby Groq] Generated reply using {model}")
+                return data["choices"][0]["message"]["content"].strip()
+            elif resp.status_code in (404, 400, 429):
+                logger.info(f"[Joby Groq] Model {model} status {resp.status_code}. Trying next model...")
+                continue
+            else:
+                logger.warning("[Joby Groq] API status %d: %s", resp.status_code, resp.text[:200])
+        except requests.exceptions.Timeout:
+            logger.info(f"[Joby Groq] Model {model} timed out after 5s. Trying next...")
+            continue
+        except Exception as e:
+            logger.warning("[Joby Groq] Model %s failed: %s", model, e)
+            continue
+
+    return None
 
 
 def _chat_with_gemini(system_prompt: str, user_message: str, api_key: str) -> Optional[str]:
-    """Chat completion via Google Gemini 2.0 Flash."""
+    """Chat completion via Google Gemini across active models."""
     try:
         from google import genai
         from google.genai import types as genai_types
 
         client = genai.Client(api_key=api_key.strip())
         prompt = f"{system_prompt}\n\nUser Question:\n{user_message}"
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(
-                temperature=0.5,
-                max_output_tokens=800,
-            ),
-        )
-        return response.text.strip()
+
+        for model in GEMINI_MODELS:
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=genai_types.GenerateContentConfig(
+                        temperature=0.5,
+                        max_output_tokens=800,
+                    ),
+                )
+                logger.info(f"[Joby Gemini] Generated reply using {model}")
+                return response.text.strip()
+            except Exception as e:
+                logger.info(f"[Joby Gemini] Model {model} failed: {e}. Trying next...")
+                continue
+        return None
     except Exception as e:
         logger.warning("[Joby Gemini] Request failed: %s", e)
         return None

@@ -32,7 +32,7 @@ from utils.filters import filter_jobs
 from utils.career_gps import evaluate_career_gps
 from utils.joby_copilot import generate_joby_reply
 from database.db import (
-    init_db, get_all_jobs, get_top_jobs, get_saved_jobs,
+    get_conn, init_db, get_all_jobs, get_jobs_filtered, get_top_jobs, get_saved_jobs,
     toggle_saved, get_stats, insert_job, is_seen, mark_seen,
     get_tracker_entries, add_tracker_entry, update_tracker_stage, delete_tracker_entry
 )
@@ -116,61 +116,59 @@ def _rescore_all_jobs(profile: dict):
     BATCH_SIZE = 500
 
     try:
-        conn = sqlite3.connect("searchy.db")
-        cur  = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM jobs")
-        total = cur.fetchone()[0] or 0
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM jobs")
+            total = cur.fetchone()[0] or 0
 
-        rescore_status = {"running": True, "done": 0, "total": total, "message": "Starting rescore..."}
+            rescore_status = {"running": True, "done": 0, "total": total, "message": "Starting rescore..."}
 
-        if total == 0:
-            rescore_status = {"running": False, "done": 0, "total": 0, "message": "No jobs to rescore"}
-            conn.close()
-            return 0
+            if total == 0:
+                rescore_status = {"running": False, "done": 0, "total": 0, "message": "No jobs to rescore"}
+                return 0
 
-        offset = 0
-        rescored_count = 0
-        while offset < total:
-            cur.execute(
-                "SELECT id, title, company, description, tags FROM jobs LIMIT ? OFFSET ?",
-                (BATCH_SIZE, offset),
-            )
-            rows = cur.fetchall()
-            if not rows:
-                break
-
-            job_list = []
-            for jid, title, company, desc, tags in rows:
-                try:
-                    tag_list = json.loads(tags) if tags else []
-                except Exception:
-                    tag_list = []
-                job_list.append({
-                    "id":          jid,
-                    "title":       title   or "",
-                    "company":     company or "",
-                    "description": desc    or "",
-                    "tags":        tag_list,
-                })
-
-            scored = batch_score(profile, job_list)
-            for job in scored:
+            offset = 0
+            rescored_count = 0
+            while offset < total:
                 cur.execute(
-                    "UPDATE jobs SET match_score=? WHERE id=?",
-                    (job.get("match_score", 0), job["id"]),
+                    "SELECT id, title, company, description, tags FROM jobs LIMIT ? OFFSET ?",
+                    (BATCH_SIZE, offset),
                 )
-            conn.commit()
+                rows = cur.fetchall()
+                if not rows:
+                    break
 
-            rescored_count += len(scored)
-            offset += BATCH_SIZE
-            rescore_status = {
-                "running": True,
-                "done": rescored_count,
-                "total": total,
-                "message": f"Rescored {rescored_count}/{total}...",
-            }
+                job_list = []
+                for jid, title, company, desc, tags in rows:
+                    try:
+                        tag_list = json.loads(tags) if tags else []
+                    except Exception:
+                        tag_list = []
+                    job_list.append({
+                        "id":          jid,
+                        "title":       title   or "",
+                        "company":     company or "",
+                        "description": desc    or "",
+                        "tags":        tag_list,
+                    })
 
-        conn.close()
+                scored = batch_score(profile, job_list)
+                for job in scored:
+                    cur.execute(
+                        "UPDATE jobs SET match_score=? WHERE id=?",
+                        (job.get("match_score", 0), job["id"]),
+                    )
+                conn.commit()
+
+                rescored_count += len(scored)
+                offset += BATCH_SIZE
+                rescore_status = {
+                    "running": True,
+                    "done": rescored_count,
+                    "total": total,
+                    "message": f"Rescored {rescored_count}/{total}...",
+                }
+
         print(f"[Upload] Rescored {rescored_count} jobs for {profile.get('name')}")
         rescore_status = {
             "running": False,
@@ -680,9 +678,14 @@ def get_jobs():
     days         = request.args.get("days",         None, type=int)
     job_type     = request.args.get("job_type",     "")
 
-    # Fetch with high limit so memory filtering doesn't prematurely drop matching items
-    fetch_limit = 3000 if (job_type or days or source or search) else limit
-    jobs = get_all_jobs(limit=fetch_limit)
+    # High-performance SQL-indexed date & score pre-filtering (bypasses heavy Python memory loops)
+    fetch_limit = 1000 if (job_type or search) else max(limit or 100, 100)
+    jobs = get_jobs_filtered(
+        days=days,
+        min_score=float(min_score or 0.0),
+        source=source if source else None,
+        limit=fetch_limit,
+    )
 
     classified_jobs = []
     for j in jobs:
@@ -1111,28 +1114,27 @@ def remove_skill():
 # ── User interaction tracking (for preference learning) ──────────────────────
 def _init_interactions_table():
     """Tracks user interactions with jobs for future preference learning."""
-    import sqlite3
-    conn = sqlite3.connect("searchy.db")
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_interactions (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            job_id        INTEGER NOT NULL,
-            action        TEXT NOT NULL,
-            ts            REAL NOT NULL
-        )
-    """)
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_interactions_action ON user_interactions(action)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_interactions_ts ON user_interactions(ts)")
-    conn.commit()
-    conn.close()
+    try:
+        with get_conn() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_interactions (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    job_id        INTEGER NOT NULL,
+                    action        TEXT NOT NULL,
+                    ts            REAL NOT NULL
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_interactions_action ON user_interactions(action)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_interactions_ts ON user_interactions(ts)")
+    except Exception as e:
+        logger.warning(f"[init] Could not create interactions table: {e}")
 
 
 # Init on import (safe — idempotent)
 try:
     _init_interactions_table()
 except Exception as e:
-    print(f"[init] Could not create interactions table: {e}")
+    logger.warning(f"[init] Could not create interactions table: {e}")
 
 
 @app.route("/api/track-interaction", methods=["POST"])
@@ -1141,7 +1143,6 @@ def track_interaction():
     Record a user action on a job. Used later to learn preferences.
     Body: {job_id: int, action: 'view'|'click'|'save'|'unsave'|'apply'|'dismiss'}
     """
-    import sqlite3, time
     data = request.get_json() or {}
     job_id = data.get("job_id")
     action = (data.get("action") or "").strip().lower()
@@ -1149,14 +1150,11 @@ def track_interaction():
         return jsonify({"error": "job_id and valid action required"}), 400
 
     try:
-        conn = sqlite3.connect("searchy.db")
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO user_interactions (job_id, action, ts) VALUES (?, ?, ?)",
-            (int(job_id), action, time.time()),
-        )
-        conn.commit()
-        conn.close()
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO user_interactions (job_id, action, ts) VALUES (?, ?, ?)",
+                (int(job_id), action, time.time()),
+            )
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1165,14 +1163,10 @@ def track_interaction():
 @app.route("/api/interaction-stats", methods=["GET"])
 def interaction_stats():
     """Returns counts of each interaction type, useful for Analytics tab."""
-    import sqlite3
     try:
-        conn = sqlite3.connect("searchy.db")
-        cur = conn.cursor()
-        cur.execute("SELECT action, COUNT(*) FROM user_interactions GROUP BY action")
-        rows = cur.fetchall()
-        conn.close()
-        return jsonify({row[0]: row[1] for row in rows})
+        with get_conn() as conn:
+            rows = conn.execute("SELECT action, COUNT(*) FROM user_interactions GROUP BY action").fetchall()
+            return jsonify({row[0]: row[1] for row in rows})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

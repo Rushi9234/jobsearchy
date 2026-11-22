@@ -14,3 +14,4 @@ plotly
 python-dotenv
 rapidfuzz
 google-genai
+libsql-experimental; platform_system != "Windows" or python_version < "3.13"

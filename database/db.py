@@ -121,6 +121,7 @@ def init_db(db_path: Optional[str] = None) -> None:
             CREATE INDEX IF NOT EXISTS idx_jobs_source  ON jobs(source);
             CREATE INDEX IF NOT EXISTS idx_jobs_notify  ON jobs(is_notified);
             CREATE INDEX IF NOT EXISTS idx_jobs_saved   ON jobs(is_saved);
+            CREATE INDEX IF NOT EXISTS idx_jobs_scraped_at ON jobs(scraped_at DESC);
 
             -- Application tracker table
             CREATE TABLE IF NOT EXISTS app_tracker (
@@ -209,6 +210,40 @@ def get_top_jobs(
         params.append(source)
     query += " ORDER BY match_score DESC, scraped_at DESC LIMIT ?"
     params.append(limit)
+    with get_conn(db_path) as conn:
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_jobs_filtered(
+    days: Optional[int] = None,
+    min_score: float = 0.0,
+    source: Optional[str] = None,
+    limit: int = 200,
+    offset: int = 0,
+    db_path: Optional[str] = None,
+) -> list[dict]:
+    """
+    High-performance indexed query filtering by date cutoff and match score at SQL level.
+    Portals (PMIS, official government) are always preserved.
+    """
+    from datetime import datetime, timedelta
+
+    query = "SELECT * FROM jobs WHERE match_score >= ?"
+    params: list[Any] = [min_score]
+
+    if days is not None and days > 0:
+        cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+        query += " AND (scraped_at >= ? OR source LIKE '%pmis%' OR source LIKE '%portal%' OR source LIKE '%static%')"
+        params.append(cutoff)
+
+    if source:
+        query += " AND source LIKE ?"
+        params.append(f"%{source}%")
+
+    query += " ORDER BY match_score DESC, scraped_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
     with get_conn(db_path) as conn:
         rows = conn.execute(query, params).fetchall()
         return [dict(r) for r in rows]

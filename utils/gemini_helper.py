@@ -33,7 +33,8 @@ except ImportError:
     GEMINI_AVAILABLE = False
     logger.warning("google-genai not installed. Run: pip install google-genai")
 
-MODEL = "gemini-2.0-flash"
+MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"]
+MODEL = MODELS[0]
 DB_PATH = "searchy.db"
 
 # ── Client (singleton, lazy-loaded) ──────────────────────────────────────────
@@ -201,34 +202,37 @@ def get_skill_content(skill: str, content_type: str = "flashcard") -> Optional[d
         return _fallback_content(skill, content_type)
 
     prompt = PROMPTS[content_type].format(skill=skill)
-    try:
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(
-                temperature=0.4,
-                max_output_tokens=1500,
-                response_mime_type="application/json",
-            ),
-        )
-        text = response.text.strip()
-        # Strip markdown fences just in case
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-            text = text.strip()
+    for model_name in MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(
+                    temperature=0.4,
+                    max_output_tokens=1500,
+                    response_mime_type="application/json",
+                ),
+            )
+            text = response.text.strip()
+            # Strip markdown fences just in case
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.strip()
 
-        parsed = json.loads(text)
-        # Cache it
-        _cache_set(skill, content_type, json.dumps(parsed))
-        return parsed
-    except json.JSONDecodeError as e:
-        logger.warning("Gemini returned malformed JSON for %s/%s: %s", skill, content_type, e)
-        return _fallback_content(skill, content_type)
-    except Exception as e:
-        logger.warning("Gemini API call failed for %s: %s", skill, e)
-        return _fallback_content(skill, content_type)
+            parsed = json.loads(text)
+            # Cache it
+            _cache_set(skill, content_type, json.dumps(parsed))
+            return parsed
+        except json.JSONDecodeError as e:
+            logger.warning("Gemini returned malformed JSON for %s/%s: %s", skill, content_type, e)
+            return _fallback_content(skill, content_type)
+        except Exception as e:
+            logger.info("Gemini model %s failed for %s: %s. Trying next model...", model_name, skill, e)
+            continue
+
+    return _fallback_content(skill, content_type)
 
 
 def explain_score_prose(score: float, title: str, company: str,
@@ -245,19 +249,21 @@ def explain_score_prose(score: float, title: str, company: str,
         matched=", ".join([m if isinstance(m, str) else m.get("skill", "") for m in matched[:5]]) or "none",
         missing=", ".join(missing[:5]) or "none",
     )
-    try:
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(
-                temperature=0.5,
-                max_output_tokens=200,
-            ),
-        )
-        return response.text.strip()
-    except Exception as e:
-        logger.warning("score explain Gemini failed: %s", e)
-        return _fallback_score_explain(score, matched, missing)
+    for model_name in MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(
+                    temperature=0.5,
+                    max_output_tokens=200,
+                ),
+            )
+            return response.text.strip()
+        except Exception as e:
+            logger.info("score explain model %s failed: %s. Trying next...", model_name, e)
+            continue
+    return _fallback_score_explain(score, matched, missing)
 
 
 # ── Fallbacks (used when Gemini is down or API key missing) ──────────────────

@@ -29,8 +29,13 @@ from utils.resume_parser import (
 logger = logging.getLogger("jobsearchy.llm_parser")
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
-GEMINI_MODEL = "gemini-2.0-flash"
+GROQ_MODELS = [
+    "qwen/qwen3.8-27b",
+    "openai/gpt-oss-20b",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+]
+GEMINI_MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"]
 
 RESUME_EXTRACTION_PROMPT = """You are an expert resume parsing engine for Indian and global tech candidates.
 Extract the candidate's structured details from the resume text below into STRICT JSON format.
@@ -83,42 +88,57 @@ Resume Text:
 
 
 def _call_groq(text: str, api_key: str) -> Optional[Dict[str, Any]]:
-    """Calls Groq Llama-3.3-70b-versatile with strict JSON output."""
+    """Calls Groq with strict JSON output across fast available models."""
     import requests
 
-    payload = {
-        "model": GROQ_MODEL,
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a specialized JSON resume extraction engine. You output only valid JSON.",
-            },
-            {
-                "role": "user",
-                "content": RESUME_EXTRACTION_PROMPT.format(resume_text=text[:12000]),
-            },
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.1,
-        "max_tokens": 2500,
-    }
     headers = {
         "Authorization": f"Bearer {api_key.strip()}",
         "Content-Type": "application/json",
     }
 
-    resp = requests.post(GROQ_ENDPOINT, headers=headers, json=payload, timeout=6)
-    if resp.status_code == 200:
-        data = resp.json()
-        content = data["choices"][0]["message"]["content"]
-        return json.loads(content)
-    else:
-        logger.warning(f"[Groq] API returned status {resp.status_code}: {resp.text[:200]}")
-        return None
+    for model in GROQ_MODELS:
+        payload = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a specialized JSON resume extraction engine. You output only valid JSON.",
+                },
+                {
+                    "role": "user",
+                    "content": RESUME_EXTRACTION_PROMPT.format(resume_text=text[:12000]),
+                },
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1,
+            "max_tokens": 2500,
+        }
+
+        try:
+            resp = requests.post(GROQ_ENDPOINT, headers=headers, json=payload, timeout=4)
+            if resp.status_code == 200:
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"]
+                parsed = json.loads(content)
+                logger.info(f"[Groq] Successfully parsed resume using model: {model}")
+                return parsed
+            elif resp.status_code in (404, 400, 429):
+                logger.info(f"[Groq] Model {model} status {resp.status_code}. Trying next candidate model...")
+                continue
+            else:
+                logger.warning(f"[Groq] API returned status {resp.status_code}: {resp.text[:200]}")
+        except requests.exceptions.Timeout:
+            logger.info(f"[Groq] Model {model} timed out after 4s. Trying next candidate model...")
+            continue
+        except Exception as e:
+            logger.warning(f"[Groq] Model {model} failed: {e}")
+            continue
+
+    return None
 
 
 def _call_gemini(text: str, api_key: str) -> Optional[Dict[str, Any]]:
-    """Calls Google Gemini-2.0-flash with structured JSON output."""
+    """Calls Google Gemini with structured JSON output across fast models."""
     try:
         from google import genai
         from google.genai import types as genai_types
@@ -126,25 +146,33 @@ def _call_gemini(text: str, api_key: str) -> Optional[Dict[str, Any]]:
         client = genai.Client(api_key=api_key.strip())
         prompt = RESUME_EXTRACTION_PROMPT.format(resume_text=text[:12000])
 
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(
-                temperature=0.1,
-                max_output_tokens=2500,
-                response_mime_type="application/json",
-            ),
-        )
+        for model in GEMINI_MODELS:
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=genai_types.GenerateContentConfig(
+                        temperature=0.1,
+                        max_output_tokens=2500,
+                        response_mime_type="application/json",
+                    ),
+                )
 
-        content = response.text.strip()
-        if content.startswith("```"):
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-            content = content.strip()
-        return json.loads(content)
+                content = response.text.strip()
+                if content.startswith("```"):
+                    content = content.split("```")[1]
+                    if content.startswith("json"):
+                        content = content[4:]
+                    content = content.strip()
+                parsed = json.loads(content)
+                logger.info(f"[Gemini] Successfully parsed resume using model: {model}")
+                return parsed
+            except Exception as e:
+                logger.info(f"[Gemini] Model {model} error: {e}. Trying next...")
+                continue
+        return None
     except Exception as e:
-        logger.warning(f"[Gemini] API error: {e}")
+        logger.warning(f"[Gemini] API initialization error: {e}")
         return None
 
 
