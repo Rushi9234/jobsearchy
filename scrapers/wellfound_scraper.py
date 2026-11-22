@@ -75,7 +75,8 @@ def scrape_wellfound(keywords: Optional[list] = None, pages: int = 2) -> list[di
                     pass
 
             # Fallback: try AngelList talent API
-            angel_url = f"https://api.angel.co/1/jobs?job_types[]=internship&skills[]={term.replace(" ","+")}"
+            term_param = term.replace(" ", "+")
+            angel_url = f"https://api.angel.co/1/jobs?job_types[]=internship&skills[]={term_param}"
             resp2 = requests.get(angel_url, headers={
                 "User-Agent": "Mozilla/5.0",
                 "Accept": "application/json",
