@@ -8,6 +8,7 @@ searchy.db
 searchy.log
 uploads/
 *.pdf
+!JobSearchy_Senior_Engineering_Handbook.pdf
 
 # Virtual environments
 venv/

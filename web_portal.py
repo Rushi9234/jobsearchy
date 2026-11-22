@@ -7,7 +7,7 @@ import time
 import sqlite3
 import re
 from datetime import datetime, timezone, timedelta
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from werkzeug.utils import secure_filename
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -195,6 +195,15 @@ def serve_static(filename):
     if not filename.startswith("api/") and os.path.exists(os.path.join("static", filename)):
         return send_from_directory("static", filename)
     return send_from_directory("static", "index.html")
+
+
+@app.route("/api/download-handbook", methods=["GET"])
+def download_handbook():
+    """Serves the master Senior Engineering Handbook PDF."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "JobSearchy_Senior_Engineering_Handbook.pdf")
+    if os.path.exists(path):
+        return send_file(path, as_attachment=True, download_name="JobSearchy_Senior_Engineering_Handbook.pdf")
+    return jsonify({"error": "Handbook PDF not generated yet"}), 404
 
 
 # ── Upload resume ─────────────────────────────────────────────────────────────
